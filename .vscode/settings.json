@@ -1,0 +1,15 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnType": true,
+    },
+    
+    "explorer.sortOrder": "type",
+    
+    "editor.indentSize": "tabSize",
+    "editor.guides.bracketPairs": true,
+    "editor.guides.bracketPairsHorizontal": true,
+    "editor.formatOnSave": true,
+
+    "python.black-formatter.args": ["--line-length", "79"],
+}
