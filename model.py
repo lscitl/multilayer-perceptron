@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 
 import sys
+import shutil
 import pandas as pd
 import numpy as np
 import copy
 from enum import Enum, auto
+from collections.abc import Iterable
 
 # from typing import Any
 
@@ -16,6 +18,7 @@ EPS = 1e-7
 class LAYER(Enum):
     INPUT = auto()
     DENSE = auto()
+    DROPOUT = auto()
     OUTPUT = auto()
 
 
@@ -35,6 +38,13 @@ class EarlyStopping(callback):
 
 class layers:
 
+    layer_to_str = {
+        LAYER.INPUT:"Input",
+        LAYER.DENSE:"Dense",
+        LAYER.DROPOUT:"Dropout",
+        LAYER.OUTPUT:"Output"
+    }
+
     def __init__(self):
         """layer init."""
         self.type: LAYER = None
@@ -42,19 +52,43 @@ class layers:
         self.activation = None
         self.weights_initializer = None
 
-    def Input(self, shape: int, activation: str):
-        """Create dense layer."""
-        self.type = LAYER.INPUT
+    def __init__(
+        self,
+        l_type: LAYER,
+        shape: tuple,
+        activation: str,
+        weights_initializer: str
+    ):
+        """layer init."""
+        self.type: LAYER = l_type
         self.shape = shape
         self.activation = activation
+        self.weights_initializer = weights_initializer
 
-    def Dense(self, shape: int, activation: str, weights_initializer: str = None):
+    def Input(self, shape: int):
+        """Create dense layer."""
+
+        return layers(LAYER.INPUT, (shape,), None, None)
+
+    def Dense(
+        self,
+        shape: int,
+        activation: str,
+        input_dim: tuple = None,
+        weights_initializer: str = None
+    ):
         """Create dense layer."""
         self.type = LAYER.DENSE
         self.shape = shape
         self.activation = activation
         self.weights_initializer = weights_initializer
 
+    @staticmethod
+    def getLayer(layer: LAYER) -> str:
+        return layers.layer_to_str[layer]
+
+    def getLayer(self) -> str:
+        return layers.layer_to_str[self.type]
 
 class Sequential:
     """
@@ -72,32 +106,45 @@ class model:
     """
     A model for neural network
     """
-    
+
     def __init__(self):
         self.layer: list[layers] = []
         self.weight: list[np.ndarray] = []
         self.bias: list[np.ndarray] = []
 
-        optimizer = None
-        loss = None
-        metrics = None
+        self.iscompile = False
+        self.optimizer = None
+        self.loss = None
+        self.metrics = None
 
-    def add(self, layer):
+    def _assert_compile(self):
+        assert self.iscompile, "model should be compiled before train/test the model."
+
+    def add(self, layer: layers):
         """add layer"""
         if len(self.layer) != 0:
-            assert self.layer[-1]
-            
-        self.layer.append(layer)
+            assert layer.type == LAYER.INPUT, "first layer should be INPUT layer."
+            self.layer.append(layer)
+        else:
+            assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
+            self.layer.append(layer)
 
-    def createNetwork(self, layer: Any):
-        """"""
+    def createNetwork(self, layer: Iterable[layers]):
+        """Create modle with given layer"""
+        for l in layer:
+            self.add(l)
+        return self
 
     def compile(self, optimizer, loss, metrics):
         """set optimizer, loss, metrics"""
+
+        assert self.iscompile is False, "model is already compiled."
+
         self.optimizer = optimizer
         self.loss = loss
         self.metrics = metrics
-    
+        self.iscompile = True
+
     def fit(
         self,
         x=None,
@@ -107,16 +154,26 @@ class model:
         callbacks: list[callback]=None
     ):
         """train data."""
-        assert all(self.optimizer, self.loss, self.metrics), "model is not compiled."
+
+        self._assert_compile()
         
 
-    def evaluate(self):
+
+    def evaluate(self,
+                 x=None
+                 y=None):
         """evaluate the model."""
-        None
+
+        self._assert_compile()
 
     def summary(self):
         """Show layer structure."""
-        None
+        
+        term_size = shutil.get_terminal_size()
+        print("     ")
+        print("-" * )
+        for l1, l2 in zip(self.layer, self.layer[1:]):
+            print(f"{}")
 
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
