@@ -8,7 +8,7 @@ import copy
 from enum import Enum, auto
 from collections.abc import Iterable
 
-# from typing import Any
+from typing import Any, Iterable
 
 # import pickle
 # from load_csv import load, get_cur_dir
@@ -50,6 +50,7 @@ class layers:
         self.type: LAYER = None
         self.shape = None
         self.activation = None
+        self.input_dim = None
         self.weights_initializer = None
 
     def __init__(
@@ -57,31 +58,26 @@ class layers:
         l_type: LAYER,
         shape: tuple,
         activation: str,
+        input_dim: int,
         weights_initializer: str
     ):
         """layer init."""
         self.type: LAYER = l_type
         self.shape = shape
         self.activation = activation
+        self.input_dim = input_dim
         self.weights_initializer = weights_initializer
 
-    def Input(self, shape: int):
-        """Create dense layer."""
-
-        return layers(LAYER.INPUT, (shape,), None, None)
-
+    @staticmethod
     def Dense(
-        self,
         shape: int,
         activation: str,
         input_dim: tuple = None,
         weights_initializer: str = None
     ):
         """Create dense layer."""
-        self.type = LAYER.DENSE
-        self.shape = shape
-        self.activation = activation
-        self.weights_initializer = weights_initializer
+
+        return model(LAYER.DENSE, shape, activation, input_dim, weights_initializer)
 
     @staticmethod
     def getLayer(layer: LAYER) -> str:
@@ -89,17 +85,6 @@ class layers:
 
     def getLayer(self) -> str:
         return layers.layer_to_str[self.type]
-
-class Sequential:
-    """
-    Create model with input layers.
-    """
-    
-    def __init__(self, layer: list[layers]):
-        """init with layers."""
-        self.model = model()
-        for l in layer:
-            self.model.add(l)
 
 
 class model:
@@ -111,6 +96,8 @@ class model:
         self.layer: list[layers] = []
         self.weight: list[np.ndarray] = []
         self.bias: list[np.ndarray] = []
+        self.input_dim: None
+        self.output_dim: None
 
         self.iscompile = False
         self.optimizer = None
@@ -123,7 +110,8 @@ class model:
     def add(self, layer: layers):
         """add layer"""
         if len(self.layer) != 0:
-            assert layer.type == LAYER.INPUT, "first layer should be INPUT layer."
+            assert layer.input_dim is not None, "first layer should be INPUT layer."
+            self.input_dim = layer.input_dim
             self.layer.append(layer)
         else:
             assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
@@ -160,7 +148,7 @@ class model:
 
 
     def evaluate(self,
-                 x=None
+                 x=None,
                  y=None):
         """evaluate the model."""
 
@@ -169,11 +157,26 @@ class model:
     def summary(self):
         """Show layer structure."""
         
-        term_size = shutil.get_terminal_size()
+        term_size = shutil.get_terminal_size() # -> 454
         print("     ")
-        print("-" * )
+        print("-" * 2)
         for l1, l2 in zip(self.layer, self.layer[1:]):
-            print(f"{}")
+            print(f"{term_size}")
+
+
+class Sequential:
+    """
+    Create model with input layers.
+    """
+    
+    def __init__(self, layer: Iterable) -> model:
+        """init with layers."""
+        self.model = model()
+
+        for l in layer:
+            self.model.add(l)
+
+        return self.model
 
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
