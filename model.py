@@ -144,8 +144,6 @@ class model:
         """train data."""
 
         self._assert_compile()
-        
-
 
     def evaluate(self,
                  x=None,
@@ -176,6 +174,7 @@ class Sequential:
         for l in layer:
             self.model.add(l)
 
+    def __new__(cls):
         return self.model
 
 
