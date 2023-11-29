@@ -55,14 +55,14 @@ class layers:
 
     def __init__(
         self,
-        l_type: LAYER,
-        shape: tuple,
+        layer_type: LAYER,
+        shape: int | tuple[int],
         activation: str,
         input_dim: int,
         weights_initializer: str
     ):
         """layer init."""
-        self.type: LAYER = l_type
+        self.type: LAYER = layer_type
         self.shape = shape
         self.activation = activation
         self.input_dim = input_dim
@@ -77,7 +77,7 @@ class layers:
     ):
         """Create dense layer."""
 
-        return model(LAYER.DENSE, shape, activation, input_dim, weights_initializer)
+        return layers(LAYER.DENSE, shape, activation, input_dim, weights_initializer)
 
     @staticmethod
     def getLayer(layer: LAYER) -> str:
@@ -161,6 +161,61 @@ class model:
         for l1, l2 in zip(self.layer, self.layer[1:]):
             print(f"{term_size}")
 
+    def _init_params(self) -> None:
+
+        self._layer_check()
+
+        if len(self.weight) == 0:
+            for l, l_next in zip(self.layer, self.layer[1:]):
+                l.shape
+
+
+    def _layer_check(self) -> None:
+
+        assert len(self.layer) > 1, "check layers."
+        assert self.layer[0].type == LAYER.INPUT, "first layer should be an input layer."
+
+        for layer in self.layer[1:-1]:
+            assert layer.type != LAYER.INPUT and layer.type != LAYER.OUTPUT, "hidden layer should not be an input or output layer."
+        
+        assert layer.type == LAYER.OUTPUT, "last layer sould be an output layer."
+
+
+    def _linear_forward(self, ) -> None:
+        return
+
+
+    def _propagate(self, w: np.ndarray, b: np.ndarray,
+                X: np.ndarray, Y: np.ndarray) -> tuple[np.ndarray, float, np.ndarray]:
+        """
+        Args
+            w: weights (n_category, n_feature)
+            b: bias (n_category,)
+            X: train data X (n_data, n_feature)
+            Y: train data Y (n_data, n_category)
+
+        Return
+            dw: gradient loss of weights
+            db: gradient loss of bias
+            cost: negative log-likelihood cost for logistic regression
+        """
+
+        # m: data size(n_data)
+        m = X.shape[0]
+
+        # A: Predicted value(Y_hat). (n_data, n_category)
+        A = sigmoid(X @ w.T + b)
+
+        # Cost(loss) add epsilon for preventing errors
+        cost = - np.sum(Y * np.log(A + EPS) + (1 - Y) * np.log(1 - A + EPS)) / m
+
+        dw = (A - Y).T @ X / m
+        db = np.sum((A - Y).T, axis=1) / m
+
+        cost = np.squeeze(np.array(cost))
+
+        return dw, db, cost
+
 
 class Sequential:
     """
@@ -175,7 +230,7 @@ class Sequential:
             self.model.add(l)
 
     def __new__(cls):
-        return self.model
+        return cls.model
 
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
@@ -211,36 +266,7 @@ def one_hot_encoding(x: pd.Series) -> np.ndarray:
     return (x.values.reshape(-1, 1) == unique_val).astype(int)
 
 
-def propagate(w: np.ndarray, b: np.ndarray,
-              X: np.ndarray, Y: np.ndarray) -> tuple[np.ndarray, float, np.ndarray]:
-    """
-    Args
-        w: weights (n_category, n_feature)
-        b: bias (n_category,)
-        X: train data X (n_data, n_feature)
-        Y: train data Y (n_data, n_category)
 
-    Return
-        dw: gradient loss of weights
-        db: gradient loss of bias
-        cost: negative log-likelihood cost for logistic regression
-    """
-
-    # m: data size(n_data)
-    m = X.shape[0]
-
-    # A: Predicted value(Y_hat). (n_data, n_category)
-    A = sigmoid(X @ w.T + b)
-
-    # Cost(loss) add epsilon for preventing errors
-    cost = - np.sum(Y * np.log(A + EPS) + (1 - Y) * np.log(1 - A + EPS)) / m
-
-    dw = (A - Y).T @ X / m
-    db = np.sum((A - Y).T, axis=1) / m
-
-    cost = np.squeeze(np.array(cost))
-
-    return dw, db, cost
 
 
 def GD_optimizer(w: np.ndarray, b: np.ndarray,
