@@ -37,11 +37,15 @@ class EarlyStopping(callback):
 
 
 class layers:
+    """
+    layer class
+    
+    """
 
     layer_to_str = {
         LAYER.INPUT:"Input",
         LAYER.DENSE:"Dense",
-        LAYER.DROPOUT:"Dropout",
+        # LAYER.DROPOUT:"Dropout",
         LAYER.OUTPUT:"Output"
     }
 
@@ -56,7 +60,7 @@ class layers:
     def __init__(
         self,
         layer_type: LAYER,
-        shape: int | tuple[int],
+        shape: int,
         activation: str,
         input_dim: int,
         weights_initializer: str
@@ -78,6 +82,13 @@ class layers:
         """Create dense layer."""
 
         return layers(LAYER.DENSE, shape, activation, input_dim, weights_initializer)
+
+    # @staticmethod
+    # def Dropout(
+
+    # ):
+    #     """Create dropout layer."""
+
 
     @staticmethod
     def getLayer(layer: LAYER) -> str:
@@ -115,6 +126,10 @@ class model:
             self.layer.append(layer)
         else:
             assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
+            assert self.layer[-1].type != LAYER.OUTPUT, "Can't add a layer after output layer."
+            # if layer.type == LAYER.DROPOUT:
+            #     pass
+            
             self.layer.append(layer)
 
     def createNetwork(self, layer: Iterable[layers]):
@@ -128,10 +143,13 @@ class model:
 
         assert self.iscompile is False, "model is already compiled."
 
+        self._init_params()
+
         self.optimizer = optimizer
         self.loss = loss
         self.metrics = metrics
         self.iscompile = True
+
 
     def fit(
         self,
@@ -145,12 +163,14 @@ class model:
 
         self._assert_compile()
 
+
     def evaluate(self,
                  x=None,
                  y=None):
         """evaluate the model."""
 
         self._assert_compile()
+
 
     def summary(self):
         """Show layer structure."""
@@ -161,13 +181,12 @@ class model:
         for l1, l2 in zip(self.layer, self.layer[1:]):
             print(f"{term_size}")
 
+
     def _init_params(self) -> None:
 
         self._layer_check()
-
-        if len(self.weight) == 0:
-            for l, l_next in zip(self.layer, self.layer[1:]):
-                l.shape
+        for l, l_next in zip(self.layer, self.layer[1:]):
+            self.weight.append(np.random.randn(l.shape, l_next.shape) * 0.01)
 
 
     def _layer_check(self) -> None:
