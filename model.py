@@ -9,6 +9,7 @@ from enum import Enum, auto
 from collections.abc import Iterable
 
 from typing import Any, Iterable
+from functools import partial
 
 # import pickle
 # from load_csv import load, get_cur_dir
@@ -217,7 +218,7 @@ class model:
         Return
             dw: gradient loss of weights
             db: gradient loss of bias
-            cost: negative log-likelihood cost for logistic regression
+            loss: loss value
         """
 
         # m: data size(n_data)
@@ -226,15 +227,17 @@ class model:
         # A: Predicted value(Y_hat). (n_data, n_category)
         A = sigmoid(X @ w.T + b)
 
+        # self.loss
+
         # Cost(loss) add epsilon for preventing errors
-        cost = - np.sum(Y * np.log(A + EPS) + (1 - Y) * np.log(1 - A + EPS)) / m
+        loss = - np.sum(Y * np.log(A + EPS) + (1 - Y) * np.log(1 - A + EPS)) / m
 
         dw = (A - Y).T @ X / m
         db = np.sum((A - Y).T, axis=1) / m
 
-        cost = np.squeeze(np.array(cost))
+        loss = np.squeeze(np.array(loss))
 
-        return dw, db, cost
+        return dw, db, loss
 
 
 class Sequential:
@@ -252,13 +255,13 @@ class Sequential:
     def __new__(cls):
         return cls.model
 
+
 def relu(x, max_val=None):
     if x < 0:
         return 0
-    else:
-        if max_val and x > max_val:
-            return max_val
-        return x
+    if max_val and x > max_val:
+        return max_val
+    return x
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
     """sigmoid function."""
@@ -266,7 +269,6 @@ def sigmoid(z: np.ndarray) -> np.ndarray:
     # for preventing overflow
     z_clipped = np.clip(z, -32, 32)
     return 1 / (np.exp(-z_clipped) + 1)
-
 
 def softmax(z: np.ndarray) -> np.ndarray:
     """softmax function."""
