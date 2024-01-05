@@ -8,7 +8,7 @@ import copy
 from enum import Enum, auto
 from collections.abc import Iterable
 
-from typing import Any, Iterable
+from typing import Any, Iterable, Callable
 from functools import partial
 
 # import pickle
@@ -36,6 +36,38 @@ class EarlyStopping(callback):
     def __init__(self, monitor = "val_loss"):
         self.monitor = monitor
 
+class Initializer:
+    """Initalizer"""
+
+    @staticmethod
+    def GlorotNormal(shape: tuple):
+        """Glorot / Xavier Normal Initializer."""
+        stddev = np.sqrt(2.0 / (shape[0] + shape[1]))
+        return np.random.normal(0, stddev, shape)
+
+    @staticmethod
+    def GlorotUniform(shape: tuple):
+        """Glorot / Xavier Uniform Initializer."""
+        limit = np.sqrt(6.0 / (shape[0] + shape[1]))
+        return np.random.uniform(-limit, limit, shape)
+
+    @staticmethod
+    def HeNormal(shape: tuple):
+        """HeUniform Initializer."""
+        stddev = np.sqrt(2.0 / shape[1])
+        return np.random.normal(0, stddev, shape)
+
+    @staticmethod
+    def HeUniform(shape: tuple):
+        """HeUniform Initializer."""
+        limit = np.sqrt(6.0 / shape[1])
+        return np.random.uniform(-limit, limit, shape)
+
+    @staticmethod
+    def Zeros(shape: tuple):
+        """Zero Initializer. For the bias."""
+        return np.zeros(shape)
+
 
 class layers:
     """
@@ -50,39 +82,48 @@ class layers:
         LAYER.OUTPUT:"Output"
     }
 
-    def __init__(self):
-        """layer init."""
-        self.type: LAYER = None
-        self.shape = None
-        self.activation = None
-        self.input_dim = None
-        self.weights_initializer = None
-
     def __init__(
         self,
         layer_type: LAYER,
-        shape: int,
+        layer_dim: int,
         activation: str,
-        input_dim: int,
-        weights_initializer: str
+        weights_initializer: Callable
     ):
         """layer init."""
         self.type: LAYER = layer_type
-        self.shape = shape
+        self.layer_dim = layer_dim
         self.activation = activation
-        self.input_dim = input_dim
-        self.weights_initializer = weights_initializer
+
+        if isinstance(weights_initializer, str):
+            match weights_initializer:
+                case "HeNormal":
+                    self.weights_initializer = Initializer.HeNormal
+                case "HeUniform":
+                    self.weights_initializer = Initializer.HeUniform
+                case "GlorotNormal" | "XavierNormal":
+                    self.weights_initializer = Initializer.GlorotNormal
+                case "GlorotUniform" | "XavierUniform":
+                    self.weights_initializer = Initializer.GlorotUniform
+                case "zero":
+                    self.weights_initializer = Initializer.Zeros
+                case _:
+                    raise AssertionError("Invalid initializer.")
+        
+        elif callable(weights_initializer):
+            self.weights_initializer = weights_initializer
+
+        else:
+            raise AssertionError("Invalid initializer.")
 
     @staticmethod
     def Dense(
-        shape: int,
-        activation: str,
-        input_dim: tuple = None,
-        weights_initializer: str = None
+        layer_dim: int,
+        activation: str | Callable,
+        weights_initializer: str="GlorotNormal"
     ):
         """Create dense layer."""
 
-        return layers(LAYER.DENSE, shape, activation, input_dim, weights_initializer)
+        return layers(LAYER.DENSE, layer_dim, activation, weights_initializer)
 
     # @staticmethod
     # def Dropout(
@@ -96,7 +137,7 @@ class layers:
         return layers.layer_to_str[layer]
 
     def getLayer(self) -> str:
-        return layers.layer_to_str[self.type]
+        return self.layer_to_str[self.type]
 
 
 class model:
@@ -106,11 +147,7 @@ class model:
 
     def __init__(self):
         self.layer: list[layers] = []
-        self.weight: list[np.ndarray] = []
-        self.bias: list[np.ndarray] = []
-        
-        self.input_dim = None
-        self.output_dim = None
+        self.params: dict = {}
 
         self.iscompile = False
         self.optimizer = None
@@ -118,25 +155,28 @@ class model:
         self.metrics = None
 
     def _assert_compile(self):
+        """compile checker."""
         assert self.iscompile, "model should be compiled before train/test the model."
 
     def add(self, layer: layers):
         """add layer"""
-        if len(self.layer) != 0:
-            assert layer.input_dim is not None, "first layer should be INPUT layer."
-            self.input_dim = layer.input_dim
-            self.layer.append(layer)
-        else:
-            assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
-            assert self.layer[-1].type != LAYER.OUTPUT, "Can't add a layer after output layer."
-            # if layer.type == LAYER.DROPOUT:
-            #     pass
-            
+
+        assert isinstance(layer, layers), "invalid layer type."
+
+        if len(self.layer) == 0:
+            assert layer.type == LAYER.INPUT, "first layer should be INPUT layer."
             self.layer.append(layer)
 
-    def createNetwork(self, layer: Iterable[layers]):
+        else:
+            assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
+            assert self.layer[-1].type != LAYER.OUTPUT, "Can't add a layer after output layer."            
+            self.layer.append(layer)
+
+    def sequential(self, layer: Iterable[layers]):
         """Create modle with given layer"""
+        
         for l in layer:
+            assert isinstance(layer, layers), "invalid layer is included."
             self.add(l)
         return self
 
@@ -145,13 +185,13 @@ class model:
 
         assert self.iscompile is False, "model is already compiled."
 
+        self._layer_check()
         self._init_params()
 
         self.optimizer = optimizer
         self.loss = loss
         self.metrics = metrics
         self.iscompile = True
-
 
     def fit(
         self,
@@ -164,12 +204,20 @@ class model:
         """train data."""
 
         self._assert_compile()
-
+    
+        for i in range(epochs):
+            self._
 
     def evaluate(self,
                  x=None,
                  y=None):
         """evaluate the model."""
+
+        self._assert_compile()
+
+    def predict(self,
+                x=None):
+        """predict."""
 
         self._assert_compile()
 
@@ -186,10 +234,9 @@ class model:
 
     def _init_params(self) -> None:
 
-        self._layer_check()
-        for l, l_next in zip(self.layer, self.layer[1:]):
-            self.weight.append(np.random.randn(l.shape, l_next.shape) * 0.01)
-
+        for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:])):
+            self.params['W' + str(i)] = l_next.weights_initializer((l_next.layer_dim, l.layer_dim))
+            self.params['b' + str(i)] = Initializer.Zeros((l_next.layer_dim, 1))
 
     def _layer_check(self) -> None:
 
@@ -199,61 +246,93 @@ class model:
         for layer in self.layer[1:-1]:
             assert layer.type != LAYER.INPUT and layer.type != LAYER.OUTPUT, "hidden layer should not be an input or output layer."
         
-        assert layer.type == LAYER.OUTPUT, "last layer sould be an output layer."
+        assert self.layer[-1].type == LAYER.OUTPUT, "last layer sould be an output layer."
 
 
-    def _linear_forward(self, ) -> None:
-        return
-
-
-    def _propagate(self, w: np.ndarray, b: np.ndarray,
-                X: np.ndarray, Y: np.ndarray) -> tuple[np.ndarray, float, np.ndarray]:
+    def _linear_forward(self, A, W, b) -> None:
         """
         Args
-            w: weights (n_category, n_feature)
-            b: bias (n_category,)
-            X: train data X (n_data, n_feature)
-            Y: train data Y (n_data, n_category)
+            A: activation from previous layer
+            W: weights
+            b: bias
 
         Return
-            dw: gradient loss of weights
-            db: gradient loss of bias
-            loss: loss value
+            Z: calculated value
+            cache: saved data of A, W, b for backward propagation.
         """
 
-        # m: data size(n_data)
-        m = X.shape[0]
+        Z = np.dot(W, A) + b
 
-        # A: Predicted value(Y_hat). (n_data, n_category)
-        A = sigmoid(X @ w.T + b)
+        return Z, (A, W, b)
 
-        # self.loss
+    def _linear_activation_forward(self, A_prev, W, b, activation):
+        """
+        Args
+            A_prev: activation from previous layer
+            W: weights
+            b: bias
+            activation: activation function
 
-        # Cost(loss) add epsilon for preventing errors
-        loss = - np.sum(Y * np.log(A + EPS) + (1 - Y) * np.log(1 - A + EPS)) / m
+        Return
+            A: the output of the activation function
+            cache: linear_cache, activation cache
+        """
 
-        dw = (A - Y).T @ X / m
-        db = np.sum((A - Y).T, axis=1) / m
+        match activation:
+            case "relu":
+                Z, linear_cache = self._linear_forward(A_prev, W, b)
+                A, activation_cache = relu(Z), Z
+            case "sigmoid":
+                Z, linear_cache = self._linear_forward(A_prev, W, b)
+                A, activation_cache = sigmoid(Z), Z
+            case _:
+                raise AssertionError("Invalid activation function.")
+            
+        cache = (linear_cache, activation_cache)
+        return A, cache
 
-        loss = np.squeeze(np.array(loss))
+    def _model_forward(self, X):
+        """
+        Args
+            X: input data
+   
+        Return
+            A: the output of the last layer
+            caches: cache values from all layers
+        """
 
-        return dw, db, loss
+        caches = []
+        A = X
 
+        for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:])):
+            A_prev = A
 
-class Sequential:
-    """
-    Create model with input layers.
-    """
+            A, cache = self._linear_activation_forward(A_prev, self.params['W' + str(i)], self.params['b' + str(i)], l_next.activation)
+            caches.append(cache)
+        
+        return A, caches
     
-    def __init__(self, layer: Iterable) -> model:
-        """init with layers."""
-        self.model = model()
+    def _compute_cost(self, A, Y):
+        """
+        Args
+            A: the output of the last layer
+            Y: the answer of input data
+   
+        Return
+            cost: cost value from the loss function
+        """
 
-        for l in layer:
-            self.model.add(l)
+        m = Y.shape[0]
 
-    def __new__(cls):
-        return cls.model
+        match self.loss:
+            case "binaryCrossentropy":
+                cost = - np.sum(Y @ np.log(A).T + (1 - Y) @ np.log(1 - A).T) / m
+            case _:
+                raise AssertionError("Invalid loss function.")
+        
+        cost = np.squeeze(cost)
+
+        return cost
 
 
 def relu(x, max_val=None):
