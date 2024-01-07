@@ -23,14 +23,14 @@ class LAYER(Enum):
     OUTPUT = auto()
 
 
-class callback:
+class Callback:
     """callbacks"""
 
     def __init__(self):
         pass
 
 
-class EarlyStopping(callback):
+class EarlyStopping(Callback):
     """EarlyStopping"""
 
     def __init__(self, monitor = "val_loss"):
@@ -69,7 +69,7 @@ class Initializer:
         return np.zeros(shape)
 
 
-class layers:
+class Layers:
     """
     layer class
     
@@ -123,7 +123,7 @@ class layers:
     ):
         """Create dense layer."""
 
-        return layers(LAYER.DENSE, layer_dim, activation, weights_initializer)
+        return Layers(LAYER.DENSE, layer_dim, activation, weights_initializer)
 
     # @staticmethod
     # def Dropout(
@@ -134,23 +134,71 @@ class layers:
 
     @staticmethod
     def getLayer(layer: LAYER) -> str:
-        return layers.layer_to_str[layer]
+        return Layers.layer_to_str[layer]
 
     def getLayer(self) -> str:
         return self.layer_to_str[self.type]
 
 
-class model:
+class Optimizer:
+    def __init__(self, learning_rate=None, weight_decay=None, name=None):
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.name = name
+
+
+class SGD(Optimizer):
+    def __init__(
+        self,
+        learning_rate=0.01,
+        momentum=0.0,
+        nesterov=False,
+        weight_decay=None,
+        name="SGD"
+    ):
+        super().__init__(learning_rate, weight_decay, name)
+
+        if not isinstance(momentum, float) or momentum < 0 or momentum > 1:
+            raise ValueError("`momentum` must be a float between [0, 1].")
+
+        self.momentum = momentum
+        self.nesterov = nesterov
+
+    def update(self, W, grad):
+        """update weight"""
+
+class Adam(Optimizer):
+    def __init__(
+        self,
+        learning_rate=0.01,
+        momentum=0.0,
+        nesterov=False,
+        weight_decay=None,
+        name="adam"
+    ):
+        super().__init__(learning_rate, weight_decay, name)
+
+        if not isinstance(momentum, float) or momentum < 0 or momentum > 1:
+            raise ValueError("`momentum` must be a float between [0, 1].")
+
+        self.momentum = momentum
+        self.nesterov = nesterov
+
+    def update(self, W, grad):
+        """update weight"""
+
+class Model:
     """
     A model for neural network
     """
 
     def __init__(self):
-        self.layer: list[layers] = []
+        self.layer: list[Layers] = []
         self.params: dict = {}
+        self.grads: dict = {}
 
         self.iscompile = False
-        self.optimizer = None
+        self.optimizer: Optimizer = None
         self.loss = None
         self.metrics = None
 
@@ -158,10 +206,10 @@ class model:
         """compile checker."""
         assert self.iscompile, "model should be compiled before train/test the model."
 
-    def add(self, layer: layers):
+    def add(self, layer: Layers):
         """add layer"""
 
-        assert isinstance(layer, layers), "invalid layer type."
+        assert isinstance(layer, Layers), "invalid layer type."
 
         if len(self.layer) == 0:
             assert layer.type == LAYER.INPUT, "first layer should be INPUT layer."
@@ -172,11 +220,11 @@ class model:
             assert self.layer[-1].type != LAYER.OUTPUT, "Can't add a layer after output layer."            
             self.layer.append(layer)
 
-    def sequential(self, layer: Iterable[layers]):
+    def sequential(self, layer: Iterable[Layers]):
         """Create modle with given layer"""
         
         for l in layer:
-            assert isinstance(layer, layers), "invalid layer is included."
+            assert isinstance(layer, Layers), "invalid layer is included."
             self.add(l)
         return self
 
@@ -188,7 +236,15 @@ class model:
         self._layer_check()
         self._init_params()
 
-        self.optimizer = optimizer
+        if isinstance(optimizer, Optimizer):
+            self.optimizer = optimizer
+        else:
+            match optimizer:
+                case "adam":
+                    self.optimizer = Adam()
+                case _:
+                    raise AssertionError("Invalid optimizer.")
+
         self.loss = loss
         self.metrics = metrics
         self.iscompile = True
@@ -199,7 +255,7 @@ class model:
         y=None,
         epochs=1,
         batch_size=32,
-        callbacks: list[callback]=None
+        callbacks: list[Callback]=None
     ):
         """train data."""
 
@@ -234,7 +290,7 @@ class model:
 
     def _init_params(self) -> None:
 
-        for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:])):
+        for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:]), start=1):
             self.params['W' + str(i)] = l_next.weights_initializer((l_next.layer_dim, l.layer_dim))
             self.params['b' + str(i)] = Initializer.Zeros((l_next.layer_dim, 1))
 
@@ -281,13 +337,16 @@ class model:
         match activation:
             case "relu":
                 Z, linear_cache = self._linear_forward(A_prev, W, b)
-                A, activation_cache = relu(Z), Z
+                A = relu(Z)
             case "sigmoid":
                 Z, linear_cache = self._linear_forward(A_prev, W, b)
-                A, activation_cache = sigmoid(Z), Z
+                A = sigmoid(Z)
             case _:
                 raise AssertionError("Invalid activation function.")
-            
+
+        # originally activation cache is the input of activation function.    
+        # but in this code, activation cache is the result of activation function.
+        activation_cache = A
         cache = (linear_cache, activation_cache)
         return A, cache
 
@@ -304,7 +363,7 @@ class model:
         caches = []
         A = X
 
-        for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:])):
+        for i, (_, l_next) in enumerate(zip(self.layer, self.layer[1:]), start=1):
             A_prev = A
 
             A, cache = self._linear_activation_forward(A_prev, self.params['W' + str(i)], self.params['b' + str(i)], l_next.activation)
@@ -334,13 +393,121 @@ class model:
 
         return cost
 
+    def _relu_backward(self, dA: np.ndarray, cache: np.ndarray):
+        """
+        Args
+            dA: gradient of the cost w.r.t. relu output
+            cache: cached data(previous input) of relu
+        
+        Return
+            dZ: gradient of the cost w.r.t. linear output
+        """
 
-def relu(x, max_val=None):
-    if x < 0:
-        return 0
-    if max_val and x > max_val:
-        return max_val
-    return x
+        assert dA.shape == cache.shape, "dA and cache shape should be the same."
+
+        return cache * dA
+
+    def _sigmoid_backward(self, dA: np.ndarray, cache: np.ndarray):
+        """
+        Args
+            dA: gradient of the cost w.r.t. sigmoid output
+            cache: cached data(previous input) of sigmoid
+        
+        Return
+            dZ: gradient of the cost w.r.t. linear output
+        """
+
+        assert dA.shape == cache.shape, "dA and cache shape should be the same."
+
+        return dA * cache * (1 - cache)
+
+    def _linear_backward(self, dZ, cache):
+        """
+        Args
+            dZ: gradient of the cost w.r.t. linear output
+            cache: cached data(A_prev, W, b) of previous layer
+        
+        Return
+            dA_prev: gradient of the cost w.r.t. the previous activation
+            dW: gradient of the cost w.r.t. W
+            db: gradient of the cost w.r.t. b
+        """
+        A_prev, W, _ = cache
+        m = A_prev.shape[0]
+
+        dW = (dZ @ A_prev.T) / m
+        db = np.sum(dZ, axis=1, keepdims=True) / m
+        dA_prev = W.T @ dZ        
+        
+        return dA_prev, dW, db
+
+    def _linear_activation_backward(self, dA, cache, activation):
+        """
+        Args
+            dA: gradient of the cost w.r.t. layer
+            cache: cached data(A_prev, W, b) of previous layer.
+            activation: the layer's activation function
+        
+        Return
+            dA_prev: gradient of the cost w.r.t. the previous activation
+            dW: gradient of the cost w.r.t. W
+            db: gradient of the cost w.r.t. b
+        """
+        linear_cache, activation_cache = cache
+        
+        match activation:
+            case "relu":
+                dZ = self._relu_backward(dA, activation_cache)
+                
+            case "sigmoid":
+                dZ = self._sigmoid_backward(dA, activation_cache)
+
+            case _:
+                raise AssertionError("Invalid activation function.")
+            
+        dA_prev, dW, db = self._linear_backward(dZ, linear_cache)
+        return dA_prev, dW, db
+
+
+    def _model_backward(self, AL: np.ndarray, Y: np.ndarray, caches: list):
+        """
+        Args
+            AL: the output of the last layer
+            Y: the answer vector of input data
+            caches: 
+   
+        Return
+            grads:
+        """
+
+        m = AL.shape[1]
+
+        match self.loss:
+            case "binaryCrossentropy":
+                dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+            case _:
+                raise AssertionError("Invalid loss function.")
+
+
+        for i, (_, l_next) in reversed(enumerate(zip(self.layer, self.layer[1:]), start=0)):
+            cache = caches[i]
+            dA_prev_tmp, dW_tmp, db_tmp = self._linear_activation_backward(dAL, cache, l_next.activation)
+            self.grads["dA" + str(i)] = dA_prev_tmp
+            self.grads["dW" + str(i + 1)] = dW_tmp
+            self.grads["db" + str(i + 1)] = db_tmp
+
+            # # parameters will updated by the optimizer.
+            # self.params["W" + str(i + 1)] = self.optimizer.update(self.params["W" + str(i + 1)], dW_tmp)
+            # self.params["b" + str(i + 1)] = self.optimizer.update(self.params["b" + str(i + 1)], db_tmp)
+
+            self.params["W" + str(i + 1)] = self.params["W" + str(i + 1)] - self.optimizer.learning_rate * dW_tmp
+            self.params["b" + str(i + 1)] = self.params["b" + str(i + 1)] - self.optimizer.learning_rate * db_tmp
+
+
+def relu(x: np.ndarray, max_val=None):
+    if max_val is not None:
+        return np.minimum(max_val, np.maximum(0, x))
+    return np.maximum(0, x)
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
     """sigmoid function."""
@@ -572,4 +739,4 @@ def one_hot_encoding(x: pd.Series) -> np.ndarray:
 
 if __name__ == "__main__":
 
-    print(model.__doc__)
+    print(Model.__doc__)
