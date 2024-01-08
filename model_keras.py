@@ -54,18 +54,27 @@ def main():
 
         model.summary()
 
-        mlp_model = model.fit(x_train, y_train, validation_split=0.2, epochs=84, batch_size=8, verbose=1)
+        mlp_model = model.fit(x_train, y_train, validation_split=0.2, epochs=10, batch_size=8, verbose=1)
+        mlp_model2 = model.fit(x_train, y_train, validation_split=0.2, epochs=10, batch_size=8, verbose=1)
 
         y_vloss = mlp_model.history['val_loss']
         y_loss = mlp_model.history['loss']
         y_vacc = mlp_model.history['val_accuracy']
         y_acc = mlp_model.history['accuracy']
+        y_vloss2 = mlp_model2.history['val_loss']
+        y_loss2 = mlp_model2.history['loss']
+        y_vacc2 = mlp_model2.history['val_accuracy']
+        y_acc2 = mlp_model2.history['accuracy']
 
         x_len = np.arange(len(y_loss))
         plt.plot(x_len, y_vloss, marker='.', c='red', label="Valid-set Loss")
         plt.plot(x_len, y_loss, marker='.', c='blue', label="Train-set Loss")
         plt.plot(x_len, y_vacc, marker='.', c='green', label="Valid-set Acc")
         plt.plot(x_len, y_acc, marker='.', c='black', label="Train-set Acc")
+        plt.plot(x_len, y_vloss2, marker='_', c='red', label="Valid-set Loss")
+        plt.plot(x_len, y_loss2, marker='_', c='blue', label="Train-set Loss")
+        plt.plot(x_len, y_vacc2, marker='_', c='green', label="Valid-set Acc")
+        plt.plot(x_len, y_acc2, marker='_', c='black', label="Train-set Acc")
 
         plt.legend(loc='upper right')
         plt.grid()

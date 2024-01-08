@@ -1,40 +1,38 @@
 from typing import overload
 from functools import partial
 
-# class tmp:
+class tmp:
 
-#     @overload
-#     def __init__(self) -> None:
-#         ...
-
-#     @overload
-#     def __init__(self, a: None, b: None) -> None:
-#         ...
-
-#     @overload
-#     def __init__(self, a: int, b: int) -> None:
-#         ...
-
-#     def __init__(self, a, b) -> None:
-#         self.a = a
-#         self.b = b
+    def __init__(self, a, b) -> None:
+        print("class tmp init called.")
+        self.a = a
+        self.b = b
 
 
-def func(input, p1=None, p2=None):
-    print(input, p1, p2)
+class tmp2(tmp):
 
-presetfunc = partial(func)
+    def __init__(self, a=1, b=2):
+        print("class tmp2 init called.")
+        super().__init__(a, b)
 
-presetfunc(5)
+class tmp3(tmp2):
 
-# if __name__ == "__main__":
+    def __init__(self, a=3, b=3):
+        print("class tmp3 init called.")
+        super().__init__(a, b)
 
-#     # t = tmp()
 
-#     # print(t.a)
+if __name__ == "__main__":
 
-l1 = [1, 2, 3, 4]
-l2 = [2, 3, 4, 5]
+    t3 = tmp3()
+    t2 = tmp2()
 
-for i, (a, b) in enumerate(zip(l1, l2)):
-    print(i, a, b)
+    print(t3.a)
+    print(t2.a)
+
+    print(isinstance(t3, tmp))
+    print(isinstance(t3, tmp2))
+    print(isinstance(t2, tmp))
+    print(isinstance(t2, tmp2))
+    print(isinstance(t2, tmp3))
+

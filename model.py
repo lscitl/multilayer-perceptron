@@ -20,7 +20,6 @@ class LAYER(Enum):
     INPUT = auto()
     DENSE = auto()
     DROPOUT = auto()
-    OUTPUT = auto()
 
 
 class Callback:
@@ -40,32 +39,32 @@ class Initializer:
     """Initalizer"""
 
     @staticmethod
-    def GlorotNormal(shape: tuple):
-        """Glorot / Xavier Normal Initializer."""
+    def glorotNormal(shape: tuple):
+        """Glorot / Xavier normal initializer."""
         stddev = np.sqrt(2.0 / (shape[0] + shape[1]))
         return np.random.normal(0, stddev, shape)
 
     @staticmethod
-    def GlorotUniform(shape: tuple):
-        """Glorot / Xavier Uniform Initializer."""
+    def glorotUniform(shape: tuple):
+        """Glorot / Xavier uniform initializer."""
         limit = np.sqrt(6.0 / (shape[0] + shape[1]))
         return np.random.uniform(-limit, limit, shape)
 
     @staticmethod
-    def HeNormal(shape: tuple):
-        """HeUniform Initializer."""
+    def heNormal(shape: tuple):
+        """He normal initializer."""
         stddev = np.sqrt(2.0 / shape[1])
         return np.random.normal(0, stddev, shape)
 
     @staticmethod
-    def HeUniform(shape: tuple):
-        """HeUniform Initializer."""
+    def heUniform(shape: tuple):
+        """He uniform initializer."""
         limit = np.sqrt(6.0 / shape[1])
         return np.random.uniform(-limit, limit, shape)
 
     @staticmethod
-    def Zeros(shape: tuple):
-        """Zero Initializer. For the bias."""
+    def zeros(shape: tuple):
+        """Zero initializer. For bias."""
         return np.zeros(shape)
 
 
@@ -78,8 +77,7 @@ class Layers:
     layer_to_str = {
         LAYER.INPUT:"Input",
         LAYER.DENSE:"Dense",
-        # LAYER.DROPOUT:"Dropout",
-        LAYER.OUTPUT:"Output"
+        LAYER.DROPOUT:"Dropout",
     }
 
     def __init__(
@@ -96,16 +94,16 @@ class Layers:
 
         if isinstance(weights_initializer, str):
             match weights_initializer:
-                case "HeNormal":
-                    self.weights_initializer = Initializer.HeNormal
-                case "HeUniform":
-                    self.weights_initializer = Initializer.HeUniform
-                case "GlorotNormal" | "XavierNormal":
-                    self.weights_initializer = Initializer.GlorotNormal
-                case "GlorotUniform" | "XavierUniform":
-                    self.weights_initializer = Initializer.GlorotUniform
+                case "heNormal":
+                    self.weights_initializer = Initializer.heNormal
+                case "heUniform":
+                    self.weights_initializer = Initializer.heUniform
+                case "glorotNormal" | "xavierNormal":
+                    self.weights_initializer = Initializer.glorotNormal
+                case "glorotUniform" | "xavierUniform":
+                    self.weights_initializer = Initializer.glorotUniform
                 case "zero":
-                    self.weights_initializer = Initializer.Zeros
+                    self.weights_initializer = Initializer.zeros
                 case _:
                     raise AssertionError("Invalid initializer.")
         
@@ -119,7 +117,7 @@ class Layers:
     def Dense(
         layer_dim: int,
         activation: str | Callable,
-        weights_initializer: str="GlorotNormal"
+        weights_initializer: str="glorotNormal"
     ):
         """Create dense layer."""
 
@@ -217,7 +215,6 @@ class Model:
 
         else:
             assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
-            assert self.layer[-1].type != LAYER.OUTPUT, "Can't add a layer after output layer."            
             self.layer.append(layer)
 
     def sequential(self, layer: Iterable[Layers]):
@@ -260,9 +257,27 @@ class Model:
         """train data."""
 
         self._assert_compile()
+
+        history = {}
+        history["loss"] = []
+        
+        batch_max = x.shape[0] // batch_size
+        if x.shape[0] % batch_size:
+            batch_max += 1
     
-        for i in range(epochs):
-            self._
+        for _ in range(epochs):
+            loss_tmp = []
+            for i, n_batch in enumerate(range(batch_max)):
+                AL, caches = self._model_forward(x[i * n_batch: (i + 1) * n_batch])
+                loss_tmp.append(self._compute_cost(AL, y[i * n_batch: (i + 1) * n_batch]))
+                self._model_backward(AL, y, caches)
+
+            # for callback in callbacks:
+            #     callback
+            
+            history['loss'].append(np.mean(loss_tmp))
+
+        return history
 
     def evaluate(self,
                  x=None,
@@ -292,7 +307,7 @@ class Model:
 
         for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:]), start=1):
             self.params['W' + str(i)] = l_next.weights_initializer((l_next.layer_dim, l.layer_dim))
-            self.params['b' + str(i)] = Initializer.Zeros((l_next.layer_dim, 1))
+            self.params['b' + str(i)] = Initializer.zeros((l_next.layer_dim, 1))
 
     def _layer_check(self) -> None:
 
@@ -300,10 +315,7 @@ class Model:
         assert self.layer[0].type == LAYER.INPUT, "first layer should be an input layer."
 
         for layer in self.layer[1:-1]:
-            assert layer.type != LAYER.INPUT and layer.type != LAYER.OUTPUT, "hidden layer should not be an input or output layer."
-        
-        assert self.layer[-1].type == LAYER.OUTPUT, "last layer sould be an output layer."
-
+            assert layer.type != LAYER.INPUT, "hidden layer should not be an input layer."
 
     def _linear_forward(self, A, W, b) -> None:
         """
@@ -341,6 +353,9 @@ class Model:
             case "sigmoid":
                 Z, linear_cache = self._linear_forward(A_prev, W, b)
                 A = sigmoid(Z)
+            case "softmax":
+                Z, linear_cache = self._linear_forward(A_prev, W, b)
+                A = softmax(Z)
             case _:
                 raise AssertionError("Invalid activation function.")
 
@@ -363,18 +378,18 @@ class Model:
         caches = []
         A = X
 
-        for i, (_, l_next) in enumerate(zip(self.layer, self.layer[1:]), start=1):
+        for i, layer in enumerate(self.layer[1:], start=1):
             A_prev = A
 
-            A, cache = self._linear_activation_forward(A_prev, self.params['W' + str(i)], self.params['b' + str(i)], l_next.activation)
+            A, cache = self._linear_activation_forward(A_prev, self.params['W' + str(i)], self.params['b' + str(i)], layer.activation)
             caches.append(cache)
         
         return A, caches
     
-    def _compute_cost(self, A, Y):
+    def _compute_cost(self, AL: np.ndarray, Y: np.ndarray):
         """
         Args
-            A: the output of the last layer
+            AL: the output of the last layer
             Y: the answer of input data
    
         Return
@@ -385,7 +400,7 @@ class Model:
 
         match self.loss:
             case "binaryCrossentropy":
-                cost = - np.sum(Y @ np.log(A).T + (1 - Y) @ np.log(1 - A).T) / m
+                cost = - np.sum(Y @ np.log(AL).T + (1 - Y) @ np.log(1 - AL).T) / m
             case _:
                 raise AssertionError("Invalid loss function.")
         
@@ -421,7 +436,7 @@ class Model:
 
         return dA * cache * (1 - cache)
 
-    def _linear_backward(self, dZ, cache):
+    def _linear_backward(self, dZ: np.ndarray, cache: tuple[np.ndarray, np.ndarray, np.ndarray]):
         """
         Args
             dZ: gradient of the cost w.r.t. linear output
@@ -468,19 +483,16 @@ class Model:
         dA_prev, dW, db = self._linear_backward(dZ, linear_cache)
         return dA_prev, dW, db
 
-
     def _model_backward(self, AL: np.ndarray, Y: np.ndarray, caches: list):
         """
         Args
             AL: the output of the last layer
             Y: the answer vector of input data
-            caches: 
-   
-        Return
-            grads:
+            caches: linear and activation cache from the each layers
+
         """
 
-        m = AL.shape[1]
+        # m = AL.shape[1]
 
         match self.loss:
             case "binaryCrossentropy":
@@ -489,12 +501,14 @@ class Model:
                 raise AssertionError("Invalid loss function.")
 
 
-        for i, (_, l_next) in reversed(enumerate(zip(self.layer, self.layer[1:]), start=0)):
+        for i, layer in reversed(enumerate(self.layer[1:], start=0)):
             cache = caches[i]
-            dA_prev_tmp, dW_tmp, db_tmp = self._linear_activation_backward(dAL, cache, l_next.activation)
+            dA_prev_tmp, dW_tmp, db_tmp = self._linear_activation_backward(dAL, cache, layer.activation)
             self.grads["dA" + str(i)] = dA_prev_tmp
             self.grads["dW" + str(i + 1)] = dW_tmp
             self.grads["db" + str(i + 1)] = db_tmp
+
+            # self._update_param()
 
             # # parameters will updated by the optimizer.
             # self.params["W" + str(i + 1)] = self.optimizer.update(self.params["W" + str(i + 1)], dW_tmp)
@@ -502,6 +516,15 @@ class Model:
 
             self.params["W" + str(i + 1)] = self.params["W" + str(i + 1)] - self.optimizer.learning_rate * dW_tmp
             self.params["b" + str(i + 1)] = self.params["b" + str(i + 1)] - self.optimizer.learning_rate * db_tmp
+
+    # def _update_param(self, n_layer,):
+    #     """
+    #     Args
+    #         AL: the output of the last layer
+    #         Y: the answer vector of input data
+    #     """
+
+    #     self.optimizer.update
 
 
 def relu(x: np.ndarray, max_val=None):
@@ -519,8 +542,8 @@ def sigmoid(z: np.ndarray) -> np.ndarray:
 def softmax(z: np.ndarray) -> np.ndarray:
     """softmax function."""
 
-    exp_z = np.exp(z - np.max(z))
-    return exp_z / np.sum(exp_z, axis=0)
+    exp_z = np.exp(z - np.max(z, axis=-1, keepdims=True))
+    return exp_z / np.sum(exp_z, axis=-1, keepdims=True)
 
 
 # def get_one_hot_value(x: np.ndarray) -> np.ndarray:
@@ -740,3 +763,8 @@ def one_hot_encoding(x: pd.Series) -> np.ndarray:
 if __name__ == "__main__":
 
     print(Model.__doc__)
+
+    v = np.array([[0.7, 0.9, 0.8], [0.1, 0.2, 0.8], [0.7, 0.4, 0.2]])
+    # v = np.array([0.7, 0.9, 0.8])
+
+    print(softmax(v))
