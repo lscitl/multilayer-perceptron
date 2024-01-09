@@ -436,6 +436,20 @@ class Model:
 
         return dA * cache * (1 - cache)
 
+    def _softmax_backward(self, dA: np.ndarray, cache: np.ndarray):
+        """
+        Args
+            dA: gradient of the cost w.r.t. softmax output
+            cache: cached data(previous input) of softmax
+        
+        Return
+            dZ: gradient of the cost w.r.t. linear output
+        """
+
+        assert dA.shape == cache.shape, "dA and cache shape should be the same."
+
+        return dA * cache * (1 - cache)
+
     def _linear_backward(self, dZ: np.ndarray, cache: tuple[np.ndarray, np.ndarray, np.ndarray]):
         """
         Args
@@ -496,7 +510,10 @@ class Model:
 
         match self.loss:
             case "binaryCrossentropy":
-                dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+                if self.layer[-1].activation == 'softmax':
+                    dAL = Y - AL
+                else:
+                    dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
             case _:
                 raise AssertionError("Invalid loss function.")
 
