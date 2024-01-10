@@ -2,11 +2,13 @@
 
 import sys
 import shutil
+import time
 import pandas as pd
 import numpy as np
 import copy
 from enum import Enum, auto
 from collections.abc import Iterable
+from optimizer import Optimizer, Adam, SGD
 
 from typing import Any, Iterable, Callable
 from functools import partial
@@ -53,13 +55,13 @@ class Initializer:
     @staticmethod
     def heNormal(shape: tuple):
         """He normal initializer."""
-        stddev = np.sqrt(2.0 / shape[1])
+        stddev = np.sqrt(2.0 / shape[0])
         return np.random.normal(0, stddev, shape)
 
     @staticmethod
     def heUniform(shape: tuple):
         """He uniform initializer."""
-        limit = np.sqrt(6.0 / shape[1])
+        limit = np.sqrt(6.0 / shape[0])
         return np.random.uniform(-limit, limit, shape)
 
     @staticmethod
@@ -85,33 +87,42 @@ class Layers:
         layer_type: LAYER,
         layer_dim: int,
         activation: str,
-        weights_initializer: Callable
+        weights_initializer: str | Callable
     ):
         """layer init."""
         self.type: LAYER = layer_type
         self.layer_dim = layer_dim
         self.activation = activation
 
-        if isinstance(weights_initializer, str):
-            match weights_initializer:
-                case "heNormal":
-                    self.weights_initializer = Initializer.heNormal
-                case "heUniform":
-                    self.weights_initializer = Initializer.heUniform
-                case "glorotNormal" | "xavierNormal":
-                    self.weights_initializer = Initializer.glorotNormal
-                case "glorotUniform" | "xavierUniform":
-                    self.weights_initializer = Initializer.glorotUniform
-                case "zero":
-                    self.weights_initializer = Initializer.zeros
-                case _:
-                    raise AssertionError("Invalid initializer.")
-        
-        elif callable(weights_initializer):
-            self.weights_initializer = weights_initializer
+        if layer_type != LAYER.INPUT:
+            if isinstance(weights_initializer, str):
+                match weights_initializer:
+                    case "heNormal":
+                        self.weights_initializer = Initializer.heNormal
+                    case "heUniform":
+                        self.weights_initializer = Initializer.heUniform
+                    case "glorotNormal" | "xavierNormal":
+                        self.weights_initializer = Initializer.glorotNormal
+                    case "glorotUniform" | "xavierUniform":
+                        self.weights_initializer = Initializer.glorotUniform
+                    case "zero":
+                        self.weights_initializer = Initializer.zeros
+                    case _:
+                        raise AssertionError("Invalid initializer.")
+            
+            elif callable(weights_initializer):
+                self.weights_initializer = weights_initializer
 
-        else:
-            raise AssertionError("Invalid initializer.")
+            else:
+                raise AssertionError("Invalid initializer.")
+
+    @staticmethod
+    def Input(
+        layer_dim: int
+    ):
+        """Create dense layer."""
+
+        return Layers(LAYER.INPUT, layer_dim, None, None)
 
     @staticmethod
     def Dense(
@@ -138,52 +149,6 @@ class Layers:
         return self.layer_to_str[self.type]
 
 
-class Optimizer:
-    def __init__(self, learning_rate=None, weight_decay=None, name=None):
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
-        self.name = name
-
-
-class SGD(Optimizer):
-    def __init__(
-        self,
-        learning_rate=0.01,
-        momentum=0.0,
-        nesterov=False,
-        weight_decay=None,
-        name="SGD"
-    ):
-        super().__init__(learning_rate, weight_decay, name)
-
-        if not isinstance(momentum, float) or momentum < 0 or momentum > 1:
-            raise ValueError("`momentum` must be a float between [0, 1].")
-
-        self.momentum = momentum
-        self.nesterov = nesterov
-
-    def update(self, W, grad):
-        """update weight"""
-
-class Adam(Optimizer):
-    def __init__(
-        self,
-        learning_rate=0.01,
-        momentum=0.0,
-        nesterov=False,
-        weight_decay=None,
-        name="adam"
-    ):
-        super().__init__(learning_rate, weight_decay, name)
-
-        if not isinstance(momentum, float) or momentum < 0 or momentum > 1:
-            raise ValueError("`momentum` must be a float between [0, 1].")
-
-        self.momentum = momentum
-        self.nesterov = nesterov
-
-    def update(self, W, grad):
-        """update weight"""
 
 class Model:
     """
@@ -204,6 +169,12 @@ class Model:
         """compile checker."""
         assert self.iscompile, "model should be compiled before train/test the model."
 
+    def _print_params(self):
+        """print_params for debug."""
+
+        for key in self.params.keys():
+            print(key + ": ", self.params[key])
+
     def add(self, layer: Layers):
         """add layer"""
 
@@ -217,13 +188,16 @@ class Model:
             assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
             self.layer.append(layer)
 
-    def sequential(self, layer: Iterable[Layers]):
+    @staticmethod
+    def sequential(layer: Iterable):
         """Create modle with given layer"""
+
+        model = Model()
         
         for l in layer:
-            assert isinstance(layer, Layers), "invalid layer is included."
-            self.add(l)
-        return self
+            assert isinstance(l, Layers), "invalid layer is included."
+            model.add(l)
+        return model
 
     def compile(self, optimizer, loss, metrics):
         """set optimizer, loss, metrics"""
@@ -233,15 +207,21 @@ class Model:
         self._layer_check()
         self._init_params()
 
+        # self._print_params()
+
         if isinstance(optimizer, Optimizer):
             self.optimizer = optimizer
-        else:
+        elif isinstance(optimizer, str):
             match optimizer:
+                case "SGD":
+                    self.optimizer = SGD()
                 case "adam":
                     self.optimizer = Adam()
                 case _:
                     raise AssertionError("Invalid optimizer.")
-
+        else:
+            raise AssertionError("Optimizer should be string or Optimizer class.")
+            
         self.loss = loss
         self.metrics = metrics
         self.iscompile = True
@@ -262,20 +242,38 @@ class Model:
         history["loss"] = []
         
         batch_max = x.shape[0] // batch_size
-        if x.shape[0] % batch_size:
-            batch_max += 1
+        seed = int(time.time() * 1000000)
+        seed = 10
     
-        for _ in range(epochs):
+        for i in range(epochs):
+            start_time = time.time()
             loss_tmp = []
-            for i, n_batch in enumerate(range(batch_max)):
-                AL, caches = self._model_forward(x[i * n_batch: (i + 1) * n_batch])
-                loss_tmp.append(self._compute_cost(AL, y[i * n_batch: (i + 1) * n_batch]))
-                self._model_backward(AL, y, caches)
+
+            # for mini-batch
+            np.random.seed(seed)
+            permutation = list(np.random.permutation(x.shape[0]))
+            shuffled_x = x[permutation, :]
+            shuffled_y = y[permutation, :]
+
+            for n_batch in range(batch_max):
+                mini_batch_x = shuffled_x[n_batch * batch_size: (n_batch + 1) * batch_size]
+                mini_batch_y = shuffled_y[n_batch * batch_size: (n_batch + 1) * batch_size]
+                # print(n_batch * batch_size, (n_batch + 1) * batch_size)
+
+                AL, caches = self._model_forward(mini_batch_x)
+                loss_tmp.append(self._compute_cost(AL, mini_batch_y))
+                self._model_backward_and_update_params(AL, mini_batch_y, caches)
+
+            seed += 1
 
             # for callback in callbacks:
             #     callback
             
             history['loss'].append(np.mean(loss_tmp))
+
+            end_time = time.time()
+            print_str = f"{i+1}/{epochs} - {int((end_time - start_time) * 1000)}ms/step"
+            print(print_str)
 
         return history
 
@@ -306,8 +304,8 @@ class Model:
     def _init_params(self) -> None:
 
         for i, (l, l_next) in enumerate(zip(self.layer, self.layer[1:]), start=1):
-            self.params['W' + str(i)] = l_next.weights_initializer((l_next.layer_dim, l.layer_dim))
-            self.params['b' + str(i)] = Initializer.zeros((l_next.layer_dim, 1))
+            self.params['W' + str(i)] = l_next.weights_initializer((l.layer_dim, l_next.layer_dim))
+            self.params['b' + str(i)] = Initializer.zeros((1, l_next.layer_dim))
 
     def _layer_check(self) -> None:
 
@@ -320,16 +318,18 @@ class Model:
     def _linear_forward(self, A, W, b) -> None:
         """
         Args
-            A: activation from previous layer
-            W: weights
-            b: bias
+            A: activation from previous layer (batch_size, n_input)
+            W: weights (n_input, n_output)
+            b: bias (1, n_output)
 
         Return
             Z: calculated value
             cache: saved data of A, W, b for backward propagation.
         """
 
-        Z = np.dot(W, A) + b
+        # print("A, W shape:", A.shape, W.shape)
+
+        Z = A @ W + b
 
         return Z, (A, W, b)
 
@@ -400,7 +400,7 @@ class Model:
 
         match self.loss:
             case "binaryCrossentropy":
-                cost = - np.sum(Y @ np.log(AL).T + (1 - Y) @ np.log(1 - AL).T) / m
+                cost = - np.sum(Y * np.log(AL) + (1 - Y) * np.log(1 - AL)) / m
             case _:
                 raise AssertionError("Invalid loss function.")
         
@@ -464,9 +464,9 @@ class Model:
         A_prev, W, _ = cache
         m = A_prev.shape[0]
 
-        dW = (dZ @ A_prev.T) / m
-        db = np.sum(dZ, axis=1, keepdims=True) / m
-        dA_prev = W.T @ dZ        
+        dW = (A_prev.T @ dZ) / m
+        db = np.sum(dZ, axis=0, keepdims=True) / m
+        dA_prev = dZ @ W.T
         
         return dA_prev, dW, db
 
@@ -490,6 +490,9 @@ class Model:
                 
             case "sigmoid":
                 dZ = self._sigmoid_backward(dA, activation_cache)
+                
+            case "softmax":
+                dZ = self._softmax_backward(dA, activation_cache)
 
             case _:
                 raise AssertionError("Invalid activation function.")
@@ -497,7 +500,7 @@ class Model:
         dA_prev, dW, db = self._linear_backward(dZ, linear_cache)
         return dA_prev, dW, db
 
-    def _model_backward(self, AL: np.ndarray, Y: np.ndarray, caches: list):
+    def _model_backward_and_update_params(self, AL: np.ndarray, Y: np.ndarray, caches: list):
         """
         Args
             AL: the output of the last layer
@@ -510,38 +513,37 @@ class Model:
 
         match self.loss:
             case "binaryCrossentropy":
-                if self.layer[-1].activation == 'softmax':
-                    dAL = Y - AL
-                else:
-                    dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+                dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+            case "mse":
+                dAL = - 2 * (Y - AL)
             case _:
                 raise AssertionError("Invalid loss function.")
 
 
-        for i, layer in reversed(enumerate(self.layer[1:], start=0)):
+        for i, layer in reversed(list(enumerate(self.layer[1:], start=0))):
             cache = caches[i]
-            dA_prev_tmp, dW_tmp, db_tmp = self._linear_activation_backward(dAL, cache, layer.activation)
-            self.grads["dA" + str(i)] = dA_prev_tmp
+            dAL, dW_tmp, db_tmp = self._linear_activation_backward(dAL, cache, layer.activation)
+            self.grads["dA" + str(i)] = dAL
             self.grads["dW" + str(i + 1)] = dW_tmp
             self.grads["db" + str(i + 1)] = db_tmp
 
-            # self._update_param()
+            # # self._update_param()
 
-            # # parameters will updated by the optimizer.
-            # self.params["W" + str(i + 1)] = self.optimizer.update(self.params["W" + str(i + 1)], dW_tmp)
-            # self.params["b" + str(i + 1)] = self.optimizer.update(self.params["b" + str(i + 1)], db_tmp)
+            # # # parameters will updated by the optimizer.
+            # # self.params["W" + str(i + 1)] = self.optimizer.update(self.params["W" + str(i + 1)], dW_tmp)
+            # # self.params["b" + str(i + 1)] = self.optimizer.update(self.params["b" + str(i + 1)], db_tmp)
+            # self.params["W" + str(i + 1)] = self.params["W" + str(i + 1)] - self.optimizer.learning_rate * dW_tmp
+            # self.params["b" + str(i + 1)] = self.params["b" + str(i + 1)] - self.optimizer.learning_rate * db_tmp
+        return self.grads
 
-            self.params["W" + str(i + 1)] = self.params["W" + str(i + 1)] - self.optimizer.learning_rate * dW_tmp
-            self.params["b" + str(i + 1)] = self.params["b" + str(i + 1)] - self.optimizer.learning_rate * db_tmp
+    def _update_param(self):
+        """
+        Args
+            AL: the output of the last layer
+            Y: the answer vector of input data
+        """
 
-    # def _update_param(self, n_layer,):
-    #     """
-    #     Args
-    #         AL: the output of the last layer
-    #         Y: the answer vector of input data
-    #     """
-
-    #     self.optimizer.update
+        self.optimizer.update(self.params, self.grads)
 
 
 def relu(x: np.ndarray, max_val=None):
@@ -775,13 +777,34 @@ def one_hot_encoding(x: pd.Series) -> np.ndarray:
 
 
 
-
+from load_csv import load
 
 if __name__ == "__main__":
 
-    print(Model.__doc__)
+    data: pd.DataFrame = load("data.csv")
 
-    v = np.array([[0.7, 0.9, 0.8], [0.1, 0.2, 0.8], [0.7, 0.4, 0.2]])
-    # v = np.array([0.7, 0.9, 0.8])
+    assert data is not None, "data load failure."
 
-    print(softmax(v))
+    data_train = data
+    # data_train = data[:450]
+    # data_valid = data[450:]
+
+
+    x_train = data_train.iloc[:, 2:].to_numpy()
+    y_train = data_train.iloc[:, 1] == "M"
+    m = data_train.iloc[:, 1] == "M"
+    b = data_train.iloc[:, 1] == "B"
+    y_train = pd.DataFrame({"M":m, "B":b})
+    y_train = y_train.to_numpy().astype(int)
+
+    mlp = Model.sequential([
+        Layers.Input(x_train.shape[1]),
+        Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
+        Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
+        Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
+        Layers.Dense(y_train.shape[1], activation='softmax', weights_initializer="heUniform")
+    ])
+
+    mlp.compile(optimizer="adam", loss="binaryCrossentropy", metrics=['Accuracy'])
+
+    history = mlp.fit(x_train, y_train, 1000, batch_size=32)

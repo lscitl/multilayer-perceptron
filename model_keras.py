@@ -31,7 +31,7 @@ def main():
         y_train = y_train.to_numpy().astype(int)
         # y_train = y_train.reshape((y_train.shape[0], 1))
 
-        print(y_train)
+        print(y_train.shape)
 
         # x_valid = data_valid.iloc[:, 2:].to_numpy()
         # y_valid = data_valid.iloc[:, 1].to_numpy()
