@@ -62,7 +62,7 @@ class SGD(Optimizer):
 class Adam(Optimizer):
     def __init__(
         self,
-        learning_rate=0.01,
+        learning_rate=0.001,
         beta_1=0.9,
         beta_2=0.999,
         epsilon=1e-7,
@@ -79,7 +79,7 @@ class Adam(Optimizer):
         self.v, self.s = self._initialize_adam(params)
         self.t = 0
 
-    def _initialize_adam(params: dict[str, np.ndarray]) :
+    def _initialize_adam(self, params: dict[str, np.ndarray]) :
         """
         Args
             params: dictionary type of model params(weights, biases)
