@@ -105,7 +105,9 @@ class Model:
         batch_size: int=32,
         epochs: int=1,
         callbacks: list[Callback]=None,
-        validation_split: float=0.0
+        shuffle: bool=True,
+        validation_split: float=0.0,
+        validation_data: tuple[np.ndarray, np.ndarray]=None
     ):
         """train data."""
 
@@ -120,7 +122,7 @@ class Model:
             callback_tmp = callbacks[:]
         callback_tmp.append(self.history)
 
-        self._callback_on_train(callback_tmp)
+        self._callback_on_train_begin(callback_tmp)
 
         batch_max, batch_remain = divmod(x.shape[0], batch_size)
         if batch_remain:
@@ -128,80 +130,155 @@ class Model:
         # seed = int(time.time() * 1000000)
         seed = 10
 
-        for i in range(epochs):
+        if validation_data:
+            x_val, y_val = validation_data
+            x_train, y_train = x, y
+        elif validation_split:
+            x_train, x_val, y_train, y_val = self._validation_split(x, y, validation_split)
+
+        if len(x_train) == 0:
+            raise ValueError("Expected input data to be non-empty.")
+
+        for epoch in range(epochs):
+            batch_loss = 0
             loss_sum = 0
             loss = 0
             acc_sum = 0
             acc = 0
+            val_loss = 0
+            val_acc = 0
             train_size = 0
             max_str_len = 0
             logs = {}
 
-            # for mini-batch
-            np.random.seed(seed)
-            permutation = list(np.random.permutation(x.shape[0]))
-            shuffled_x = x[permutation, :]
-            shuffled_y = y[permutation, :]
+            if shuffle:
+                np.random.seed(seed)
+                permutation = list(np.random.permutation(x_train.shape[0]))
+                X_train = x_train[permutation, :]
+                Y_train = y_train[permutation, :]
+            else:
+                X_train = x_train
+                Y_train = y_train
 
-            epoch_str = f"{i + 1}/{epochs}"
+            epoch_str = f"{epoch + 1}/{epochs}"
             print(epoch_str)
 
             for n_batch in range(batch_max):
 
                 batch_start_time = time.time()
-                mini_batch_x = shuffled_x[n_batch * batch_size: (n_batch + 1) * batch_size]
-                mini_batch_y = shuffled_y[n_batch * batch_size: (n_batch + 1) * batch_size]
+                x_mini_batch = X_train[n_batch * batch_size: (n_batch + 1) * batch_size]
+                y_mini_batch = Y_train[n_batch * batch_size: (n_batch + 1) * batch_size]
 
-                train_size += mini_batch_x.shape[0]
-                AL, caches = self._model_forward(mini_batch_x)
-                loss_sum += self._compute_cost(AL, mini_batch_y) * mini_batch_x.shape[0]
-                loss = loss_sum / train_size
+                train_size += x_mini_batch.shape[0]
+                AL, caches = self._model_forward(x_mini_batch)
+                batch_loss = self._compute_cost(AL, y_mini_batch) * x_mini_batch.shape[0]
+                loss_sum += batch_loss
+                loss = batch_loss
+                logs["loss"] = loss
 
-                self._model_backward_and_update_params(AL, mini_batch_y, caches)
+                self._model_backward_and_update_params(AL, y_mini_batch, caches)
+
+                for metric in self.metrics:
+                    match metric:
+                        case "Accuracy":
+                            acc_tmp = self._get_accuracy_sum(AL, y_mini_batch)
+                            if acc_tmp is not None:
+                                acc_sum += acc_tmp
+                                acc = acc_sum / train_size
+                                logs["accuracy"] = acc
+
+                        case _:
+                            pass                
 
                 batch_end_time = time.time()
-                batch_time_micro_s = int((batch_end_time - batch_start_time) * 1000000)
-                batch_time_ms, batch_time_micro_remain = divmod(batch_time_micro_s, 1000)
-                
-                batch_str = f"\r{n_batch + 1}/{batch_max}"
-
-                batch_time_s = 0
-                if batch_time_ms == 0:
-                    batch_str += f" - 0s {batch_time_micro_remain}μs/step"
-                else:
-                    if batch_time_ms > 1000:
-                        batch_time_s, batch_time_ms = divmod(batch_time_ms, 1000)
-                    batch_str += f" - {batch_time_s}s {batch_time_ms}ms/step"
-                
-                batch_str += f" - loss: {loss:.4f}"
-
-                if hasattr(self.metrics, "Accuracy"):
-                    acc_tmp = self._get_accuracy_sum(AL, mini_batch_y)
-                    if acc_tmp is not None:
-                        acc_sum += acc_tmp
-                        acc = acc_sum / train_size
-                        batch_str += f" - accuracy: {acc:.4f}"
-                
+                batch_str = self._make_batch_str(batch_start_time, batch_end_time, n_batch, batch_max, logs)       
                 if max_str_len < len(batch_str):
                     max_str_len = len(batch_str)
                 else:
                     batch_str += " " * (max_str_len - len(batch_str))
                 print(batch_str, end="", flush=True)
 
-            seed += 1
+            if len(x_val):
+                AL_val, _ = self._model_forward(x_val)
+                val_loss = self._compute_cost(AL_val, y_val)
+                logs["val_loss"] = val_loss
+
+                for metric in self.metrics:
+                    match metric:
+                        case "Accuracy":
+                            val_acc = self._get_accuracy_sum(AL_val, y_val) / len(x_val)
+                            logs["val_accuracy"] = val_acc
+                        case _:
+                            pass
+
+            epoch_str = batch_str + self._epoch_str(logs)
+            print(epoch_str, end="", flush=True)
             print("")
 
-            # for callback in callbacks:
-            #     callback
+            seed += 1
+
+            self._callback_on_epoch_end(callback_tmp, epoch, logs)
 
             if self.stop_training:
                 break
 
-        return history
+        self._callback_on_train_end(callback_tmp, logs)
 
-    def _callback_on_train(self, callback: list[Callback]):
-        for cb in callback:
-            cb.on_train_begin()
+        return self.history
+
+    def _make_batch_str(self, batch_start_time, batch_end_time, n_batch, batch_max, logs:dict):
+
+        batch_time_micro_s = int((batch_end_time - batch_start_time) * 1000000)
+        batch_time_ms, batch_time_micro_remain = divmod(batch_time_micro_s, 1000)
+        
+        batch_str = f"\r{n_batch + 1}/{batch_max}"
+        batch_time_s = 0
+        if batch_time_ms == 0:
+            batch_str += f" - 0s {batch_time_micro_remain}μs/step"
+        else:
+            if batch_time_ms > 1000:
+                batch_time_s, batch_time_ms = divmod(batch_time_ms, 1000)
+            batch_str += f" - {batch_time_s}s {batch_time_ms}ms/step"
+
+        batch_str += f" - loss: {logs['loss']:.4f}"
+
+        for key in ["accuracy"]:
+            if key in logs.keys():
+                batch_str += f" - {key}: {logs[key]:.4f}"
+
+        return batch_str
+    
+    def _epoch_str(self, logs: dict):
+        epoch_str = ""
+        for key in ["val_loss", "val_accuracy"]:
+            if key in logs.keys():
+                epoch_str += f" - {key}: {logs[key]:.4f}"
+
+        return epoch_str
+
+    def _validation_split(self, x: np.ndarray, y: np.ndarray, validation_split: float):
+
+        split_len = min(max(1, int(len(x) * validation_split)), len(x))
+        train_len = len(x) - split_len
+        
+        X_train = x[:train_len]
+        Y_train = y[:train_len]
+        x_val = x[train_len:]
+        y_val = y[train_len:]
+
+        return X_train, x_val, Y_train, y_val
+
+    def _callback_on_epoch_end(self, callbacks: list[Callback], epoch: int, logs: dict=None):
+        for callback in callbacks:
+            callback.on_epoch_end(epoch, logs)
+
+    def _callback_on_train_begin(self, callbacks: list[Callback]):
+        for callback in callbacks:
+            callback.on_train_begin()
+
+    def _callback_on_train_end(self, callbacks: list[Callback], logs):
+        for callback in callbacks:
+            callback.on_train_end(logs)
 
     def _get_accuracy_sum(self, y_hat: np.ndarray, y: np.ndarray):
         """get accuracy"""
@@ -515,35 +592,7 @@ def one_hot_encoding(x: pd.Series) -> np.ndarray:
     return (x.values.reshape(-1, 1) == unique_val).astype(int)
 
 
-
-from load_csv import load
-
 if __name__ == "__main__":
 
-    data: pd.DataFrame = load("data.csv")
+    print(Model.__doc__)
 
-    assert data is not None, "data load failure."
-
-    data_train = data
-    # data_train = data[:450]
-    # data_valid = data[450:]
-
-
-    x_train = data_train.iloc[:, 2:].to_numpy()
-    y_train = data_train.iloc[:, 1] == "M"
-    m = data_train.iloc[:, 1] == "M"
-    b = data_train.iloc[:, 1] == "B"
-    y_train = pd.DataFrame({"M":m, "B":b})
-    y_train = y_train.to_numpy().astype(int)
-
-    mlp = Model.sequential([
-        Layers.Input(x_train.shape[1]),
-        Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
-        Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
-        Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
-        Layers.Dense(y_train.shape[1], activation='softmax', weights_initializer="heUniform")
-    ])
-
-    mlp.compile(optimizer="adam", loss="binaryCrossentropy", metrics=['Accuracy'])
-
-    history = mlp.fit(x_train, y_train, batch_size=32, epochs=1000)
