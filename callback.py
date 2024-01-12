@@ -7,11 +7,14 @@ class Callback:
 
     def set_model(self, model):
         self.model = model
+    
+    def on_epoch_end(self, epoch, logs: dict=None):
+        pass
 
     def on_train_begin(self):
         pass
-    
-    def on_epoch_end(self, epoch, logs: dict=None):
+
+    def on_train_end(self, logs=None):
         pass
 
 class EarlyStopping(Callback):
@@ -25,6 +28,8 @@ class EarlyStopping(Callback):
     def on_epoch_end(self, epoch, logs: dict=None):
         return
 
+    def on_train_end(self, logs=None):
+        pass
 
 class History(Callback):
     """Model fitting history"""
