@@ -55,8 +55,8 @@ def main():
 
         model.summary()
 
-        mlp_model = model.fit(x_train, y_train, epochs=1000, batch_size=32, verbose=1)
-        # mlp_model = model.fit(x_train, y_train, validation_split=0.2, epochs=1000, batch_size=32, verbose=1)
+        # mlp_model = model.fit(x_train, y_train, epochs=1000, batch_size=200, verbose=1, shuffle=True)
+        mlp_model = model.fit(x_train, y_train, validation_split=0.1, epochs=5000, batch_size=200)
         # mlp_model2 = model.fit(x_train, y_train, validation_split=0.2, epochs=10, batch_size=8, verbose=1)
 
         y_loss = mlp_model.history['loss']
