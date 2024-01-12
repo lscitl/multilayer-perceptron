@@ -4,7 +4,6 @@ from functools import partial
 class tmp:
 
     i = 0
-
     def __init__(self, a, b) -> None:
         print("class tmp init called.")
         tmp.i += 1
@@ -14,7 +13,6 @@ class tmp:
     def __repr__(self):
         return "tmp"
 
-
 class tmp2(tmp):
 
     def __init__(self, a=1, b=2):
@@ -23,6 +21,7 @@ class tmp2(tmp):
 
     def __repr__(self):
         return "tmp2"
+
 class tmp3(tmp2):
 
     def __init__(self, a=3, b=3):
