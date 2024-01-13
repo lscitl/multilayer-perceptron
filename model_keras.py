@@ -51,31 +51,31 @@ def main():
         optimizer = keras.optimizers.Adam()
         model.compile(optimizer=optimizer,
                     loss='binary_crossentropy',
-                    metrics=['accuracy'])
+                    metrics=['accuracy', 'mse'])
 
         model.summary()
 
+        es = keras.callbacks.EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
+
         # mlp_model = model.fit(x_train, y_train, epochs=1000, batch_size=200, verbose=1, shuffle=True)
-        mlp_model = model.fit(x_train, y_train, validation_split=0.1, epochs=5000, batch_size=200)
+        mlp_model = model.fit(x_train, y_train, validation_split=0.1, epochs=5000, batch_size=200, callbacks=[es])
         # mlp_model2 = model.fit(x_train, y_train, validation_split=0.2, epochs=10, batch_size=8, verbose=1)
 
         y_loss = mlp_model.history['loss']
-        y_acc = mlp_model.history['accuracy']
-        x_len = np.arange(len(y_loss))
-        plt.plot(x_len, y_loss, marker='.', c='blue', label="Train-set Loss")
-        plt.plot(x_len, y_acc, marker='.', c='black', label="Train-set Acc")
-        # y_vloss = mlp_model.history['val_loss']
-        # y_vacc = mlp_model.history['val_accuracy']
-        # plt.plot(x_len, y_vloss, marker='.', c='red', label="Valid-set Loss")
-        # plt.plot(x_len, y_vacc, marker='.', c='green', label="Valid-set Acc")
-        # y_vloss2 = mlp_model2.history['val_loss']
-        # y_loss2 = mlp_model2.history['loss']
-        # y_vacc2 = mlp_model2.history['val_accuracy']
-        # y_acc2 = mlp_model2.history['accuracy']
-        # plt.plot(x_len, y_vloss2, marker='_', c='red', label="Valid-set Loss")
-        # plt.plot(x_len, y_loss2, marker='_', c='blue', label="Train-set Loss")
-        # plt.plot(x_len, y_vacc2, marker='_', c='green', label="Valid-set Acc")
-        # plt.plot(x_len, y_acc2, marker='_', c='black', label="Train-set Acc")
+        x_len = mlp_model.epoch
+        plt.plot(x_len, y_loss, c='blue', label="Train-set Loss")
+        
+        if "accuracy" in mlp_model.history.keys():
+            y_acc = mlp_model.history['accuracy']
+            plt.plot(x_len, y_acc, c='black', label="Train-set Acc")
+        
+        if "val_loss" in mlp_model.history.keys():
+            y_val_loss = mlp_model.history['val_loss']
+            plt.plot(x_len, y_val_loss, c='red', label="Valid-set Loss")
+        
+        if "val_accuracy" in mlp_model.history.keys():
+            y_val_acc = mlp_model.history['val_accuracy']
+            plt.plot(x_len, y_val_acc, c='green', label="Valid-set Acc")
 
         plt.legend(loc='upper right')
         plt.grid()
@@ -83,10 +83,12 @@ def main():
         plt.ylabel('loss')
         plt.show()
 
-        return model, mlp_model
+        eval = model.evaluate(x_train[-100:], y_train[-100:], batch_size=1, return_dict=True)
+
+        return model, mlp_model, eval
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
-    model, mlp_model = main()
+    model, mlp_model, eval= main()
