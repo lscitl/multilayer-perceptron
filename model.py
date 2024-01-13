@@ -1,21 +1,18 @@
 #!/usr/bin/python3
 
-import sys
-import copy
-import shutil
 import time
 
 import pandas as pd
 import numpy as np
 
-from typing import Any, Iterable
-from functools import partial
+from typing import Iterable
 
 from optimizer import Optimizer, Adam, SGD
 from initializer import Initializer
 from layers import LAYER, Layers
-from callback import Callback, EarlyStopping, History
+from callback import Callback, History
 
+EPS = 1e-7
 
 class Model:
     """
@@ -115,38 +112,45 @@ class Model:
 
         self.stop_training = False
         self.history = History()
-        self.history.set_model(self)
 
         callback_tmp = []
         if callbacks:
             callback_tmp = callbacks[:]
         callback_tmp.append(self.history)
 
+        for cb in callback_tmp:
+            cb.set_model(self)
+
         self._callback_on_train_begin(callback_tmp)
 
-        batch_max, batch_remain = divmod(x.shape[0], batch_size)
-        if batch_remain:
-            batch_max += 1
         # seed = int(time.time() * 1000000)
         seed = 10
 
-        if validation_data:
+        have_validation = False
+
+        # validation split or data check
+        if validation_data is not None:
             x_val, y_val = validation_data
             x_train, y_train = x, y
+            have_validation = True
         elif validation_split:
             x_train, x_val, y_train, y_val = self._validation_split(x, y, validation_split)
+            have_validation = True
+        else:
+            x_train, y_train = x, y
 
         if len(x_train) == 0:
             raise ValueError("Expected input data to be non-empty.")
 
+        batch_max, batch_remain = divmod(x_train.shape[0], batch_size)
+        if batch_remain:
+            batch_max += 1
+
         for epoch in range(epochs):
-            batch_loss = 0
             loss_sum = 0
-            loss = 0
             acc_sum = 0
-            acc = 0
-            val_loss = 0
-            val_acc = 0
+            mse_sum = 0
+
             train_size = 0
             max_str_len = 0
             logs = {}
@@ -161,36 +165,39 @@ class Model:
                 Y_train = y_train
 
             epoch_str = f"{epoch + 1}/{epochs}"
-            print(epoch_str)
+            print(f"Epoch {epoch_str}")
 
             for n_batch in range(batch_max):
-
                 batch_start_time = time.time()
                 x_mini_batch = X_train[n_batch * batch_size: (n_batch + 1) * batch_size]
                 y_mini_batch = Y_train[n_batch * batch_size: (n_batch + 1) * batch_size]
-
                 train_size += x_mini_batch.shape[0]
-                AL, caches = self._model_forward(x_mini_batch)
-                batch_loss = self._compute_cost(AL, y_mini_batch) * x_mini_batch.shape[0]
-                loss_sum += batch_loss
-                loss = batch_loss
-                logs["loss"] = loss
 
+                AL, caches = self._model_forward(x_mini_batch)
+                loss_sum += self._compute_cost(AL, y_mini_batch) * len(x_mini_batch)
                 self._model_backward_and_update_params(AL, y_mini_batch, caches)
+
+                logs["loss"] = loss_sum / train_size
 
                 for metric in self.metrics:
                     match metric:
-                        case "Accuracy":
+                        case "accuracy":
                             acc_tmp = self._get_accuracy_sum(AL, y_mini_batch)
                             if acc_tmp is not None:
                                 acc_sum += acc_tmp
                                 acc = acc_sum / train_size
                                 logs["accuracy"] = acc
+                        case "mse":
+                            mse_tmp = self._get_mse_sum(AL, y_mini_batch)
+                            mse_sum += mse_tmp
+                            mse = mse_sum / train_size
+                            logs["mse"] = mse
 
                         case _:
                             pass                
 
                 batch_end_time = time.time()
+
                 batch_str = self._make_batch_str(batch_start_time, batch_end_time, n_batch, batch_max, logs)       
                 if max_str_len < len(batch_str):
                     max_str_len = len(batch_str)
@@ -198,20 +205,25 @@ class Model:
                     batch_str += " " * (max_str_len - len(batch_str))
                 print(batch_str, end="", flush=True)
 
-            if len(x_val):
+            epoch_str = batch_str
+            if have_validation:
                 AL_val, _ = self._model_forward(x_val)
                 val_loss = self._compute_cost(AL_val, y_val)
                 logs["val_loss"] = val_loss
 
                 for metric in self.metrics:
                     match metric:
-                        case "Accuracy":
+                        case "accuracy":
                             val_acc = self._get_accuracy_sum(AL_val, y_val) / len(x_val)
                             logs["val_accuracy"] = val_acc
+                        case "mse":
+                            val_mse = self._get_mse_sum(AL_val, y_val) / len(x_val)
+                            logs["val_mse"] = val_mse
                         case _:
                             pass
 
-            epoch_str = batch_str + self._epoch_str(logs)
+                epoch_str += self._add_val_str(logs)
+
             print(epoch_str, end="", flush=True)
             print("")
 
@@ -220,6 +232,7 @@ class Model:
             self._callback_on_epoch_end(callback_tmp, epoch, logs)
 
             if self.stop_training:
+                # print(f"Epoch {epoch + 1}: model fitting is early stopped.")
                 break
 
         self._callback_on_train_end(callback_tmp, logs)
@@ -242,15 +255,20 @@ class Model:
 
         batch_str += f" - loss: {logs['loss']:.4f}"
 
-        for key in ["accuracy"]:
-            if key in logs.keys():
-                batch_str += f" - {key}: {logs[key]:.4f}"
+        for metric in self.metrics:
+            if metric in logs.keys():
+                batch_str += f" - {metric}: {logs[metric]:.4f}"
 
         return batch_str
     
-    def _epoch_str(self, logs: dict):
+    def _add_val_str(self, logs: dict):
         epoch_str = ""
-        for key in ["val_loss", "val_accuracy"]:
+        key = "val_loss"
+        if key in logs.keys():
+            epoch_str += f" - {key}: {logs[key]:.4f}"
+            
+        for metric in self.metrics:
+            key = "val_" + metric
             if key in logs.keys():
                 epoch_str += f" - {key}: {logs[key]:.4f}"
 
@@ -281,28 +299,80 @@ class Model:
             callback.on_train_end(logs)
 
     def _get_accuracy_sum(self, y_hat: np.ndarray, y: np.ndarray):
-        """get accuracy"""
+        """get accuracy summation"""
 
         match self.loss:
             case "binaryCrossentropy":
-                if y_hat.shape[1] != 1:
-                    y_hat = get_one_hot_value(y_hat)
-                    return np.sum(np.all(y_hat == y, axis=1))
-                elif y.ndim == 1 or y.shape[1] == 1:
+                if y.ndim == 1 or y.shape[1] == 1:
                     y_hat = y_hat >= 0.5
                     return np.sum(y_hat)
+                elif y_hat.shape[1] != 1:
+                    y_hat = get_one_hot_value(y_hat)
+                    return np.sum(np.all(y_hat == y, axis=1))
                 else:
                     raise AssertionError("loss error")
             case _:
                 return None
 
+    def _get_mse_sum(self, y_hat: np.ndarray, y: np.ndarray):
+        """get mse summation"""
+
+        return np.sum(np.square(y - y_hat))
 
     def evaluate(self,
-                 x=None,
-                 y=None):
+                 x: np.ndarray=None,
+                 y: np.ndarray=None,
+                 batch_size=32,
+                 return_dict=False
+                 ):
         """evaluate the model."""
 
         self._assert_compile()
+
+        batch_max, batch_remain = divmod(x.shape[0], batch_size)
+        if batch_remain:
+            batch_max += 1
+
+        loss_sum = 0
+        acc_sum = 0
+        mse_sum = 0
+        train_size = 0
+        logs = {}
+        for n_batch in range(batch_max):
+            batch_start_time = time.time() * 1000000
+            x_mini_batch = x[n_batch * batch_size: (n_batch + 1) * batch_size]
+            y_mini_batch = y[n_batch * batch_size: (n_batch + 1) * batch_size]
+
+            train_size += len(x_mini_batch)
+            y_hat, _ = self._model_forward(x_mini_batch)
+            loss_sum += self._compute_cost(y_hat, y_mini_batch) * len(x_mini_batch)
+            logs["loss"] = loss_sum / train_size
+
+            for metric in self.metrics:
+                match metric:
+                    case "accuracy":
+                        acc_tmp = self._get_accuracy_sum(y_hat, y_mini_batch)
+                        if acc_tmp is not None:
+                            acc_sum += acc_tmp
+                            acc = acc_sum / train_size
+                            logs["accuracy"] = acc
+                    case "mse":
+                        mse_tmp = self._get_mse_sum(y_hat, y_mini_batch)
+                        mse_sum += mse_tmp
+                        mse = mse_sum / train_size
+                        logs["mse"] = mse
+
+                    case _:
+                        pass          
+
+            batch_end_time = time.time() * 1000000
+            batch_str = self._make_batch_str(batch_start_time, batch_end_time, n_batch, batch_max, logs)
+            print(batch_str, end="", flush=True)
+        print("")
+
+        if return_dict:
+            return logs
+        return list(logs.values())
 
     def predict(self,
                 x=None):
@@ -314,19 +384,34 @@ class Model:
 
         match self.loss:
             case "binaryCrossentropy":
-                if predict.shape[1] != 1:
+                if predict.ndim == 1:
+                    return (predict > 0.5).astype(int)
+                elif predict.shape[1] != 1:
                     return get_one_hot_value(predict)
+                else:
+                    AssertionError("invalid.")
 
         return predict
 
     def summary(self):
         """Show layer structure."""
         
-        term_size = shutil.get_terminal_size() # -> 454
-        print("     ")
-        print("-" * 2)
-        for l1, l2 in zip(self.layer, self.layer[1:]):
-            print(f"{term_size}")
+        print("_________________________________________________________________")
+        print(" Layer (type)                Output Shape              Param #   ")
+        print("=================================================================")
+        input = 0
+        for l in self.layer:
+            layer_str = l.getLayer()
+            layer_str += " " * (28 - len(layer_str))
+            output_str = f"(None, {l.layer_dim})"
+            output_str += " " * (26 - len(output_str))
+            param_str = "0"
+            if input != 0:
+                param_str = f"{input * l.layer_dim + l.layer_dim}"
+            input = l.layer_dim
+            print(f" {layer_str}{output_str}{param_str}")
+            print("")
+        print("=================================================================")
 
 
     def _init_params(self) -> None:
@@ -424,11 +509,11 @@ class Model:
             cost: cost value from the loss function
         """
 
-        m = Y.shape[0]
-
         match self.loss:
             case "binaryCrossentropy":
-                cost = - np.sum(Y * np.log(AL) + (1 - Y) * np.log(1 - AL)) / m
+                cost = - np.mean(Y * np.log(AL + EPS) + (1 - Y) * np.log(1 - AL + EPS))
+            case "mse":
+                cost = np.mean(np.square(Y - AL))
             case _:
                 raise AssertionError("Invalid loss function.")
         
