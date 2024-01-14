@@ -123,8 +123,7 @@ class Model:
 
         self._callback_on_train_begin(callback_tmp)
 
-        # seed = int(time.time() * 1000000)
-        seed = 10
+        seed = int(time.time() * 1000000) & 0xFFFFFFFF
 
         have_validation = False
 
@@ -382,15 +381,6 @@ class Model:
 
         predict, _ = self._model_forward(x)
 
-        match self.loss:
-            case "binaryCrossentropy":
-                if predict.ndim == 1:
-                    return (predict > 0.5).astype(int)
-                elif predict.shape[1] != 1:
-                    return get_one_hot_value(predict)
-                else:
-                    AssertionError("invalid.")
-
         return predict
 
     def summary(self):
@@ -400,6 +390,7 @@ class Model:
         print(" Layer (type)                Output Shape              Param #   ")
         print("=================================================================")
         input = 0
+        total_params = 0
         for l in self.layer:
             layer_str = l.getLayer()
             layer_str += " " * (28 - len(layer_str))
@@ -407,11 +398,15 @@ class Model:
             output_str += " " * (26 - len(output_str))
             param_str = "0"
             if input != 0:
-                param_str = f"{input * l.layer_dim + l.layer_dim}"
+                n_param = input * l.layer_dim + l.layer_dim
+                param_str = f"{n_param}"
+                total_params += n_param
             input = l.layer_dim
             print(f" {layer_str}{output_str}{param_str}")
             print("")
         print("=================================================================")
+        print(f"Total params: {total_params}")
+        print("_________________________________________________________________")
 
 
     def _init_params(self) -> None:
