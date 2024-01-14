@@ -8,6 +8,7 @@ from load_csv import load
 from model import Model
 from layers import Layers
 from callback import EarlyStopping
+from optimizer import SGD, RMSprop, Adam
 
 if __name__ == "__main__":
 
@@ -36,7 +37,11 @@ if __name__ == "__main__":
             Layers.Dense(y_train.shape[1], activation='softmax', weights_initializer="heUniform")
         ])
 
-        mlp.compile(optimizer="adam", loss="binaryCrossentropy", metrics=['accuracy'])
+        optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        optimizer = RMSprop(momentum=0.9)
+        optimizer = Adam()
+
+        mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy'])
 
         mlp.summary()
 
@@ -66,6 +71,8 @@ if __name__ == "__main__":
         plt.show()
 
         eval = mlp.evaluate(x_train[-100:], y_train[-100:], batch_size=1, return_dict=False)
+
+        print(mlp.predict(x_train[-100:]))
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
