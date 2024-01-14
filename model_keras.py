@@ -36,22 +36,24 @@ def main():
         # y_valid = data_valid.iloc[:, 1].to_numpy()
         # y_valid = y_valid.reshape((y_valid.shape[0], 1))
         
-        initializer = keras.initializers.HeUniform(seed=None)
+        initializer = keras.initializers.HeUniform(seed=int(time.time() * 1000000) & 0xFFFFFFFF)
 
         print(x_train.shape, y_train.shape)
 
         model = keras.Sequential([
             keras.layers.Input(shape=(x_train.shape[1],)),
-            keras.layers.Dense(24, activation='sigmoid'),
-            keras.layers.Dense(24, activation='sigmoid'),
-            keras.layers.Dense(24, activation='sigmoid'),
-            keras.layers.Dense(y_train.shape[1], activation='softmax')
+            keras.layers.Dense(24, activation='sigmoid', kernel_initializer=initializer),
+            keras.layers.Dense(24, activation='sigmoid', kernel_initializer=initializer),
+            keras.layers.Dense(24, activation='sigmoid', kernel_initializer=initializer),
+            keras.layers.Dense(y_train.shape[1], activation='softmax', kernel_initializer=initializer)
         ])
         
         optimizer = keras.optimizers.Adam()
+        optimizer = keras.optimizers.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        optimizer = keras.optimizers.RMSprop(momentum=0.9)
         model.compile(optimizer=optimizer,
                     loss='binary_crossentropy',
-                    metrics=['accuracy', 'mse'])
+                    metrics=['accuracy'])
 
         model.summary()
 
