@@ -4,7 +4,7 @@ import numpy as np
 
 class Optimizer:
     def __init__(self, learning_rate=None, weight_decay=None, name=None):
-        self.learning_rate = learning_rate
+        self.lr = learning_rate
         self.weight_decay = weight_decay
         self.name = name
 
@@ -31,11 +31,15 @@ class SGD(Optimizer):
 
         self.momentum = momentum
         self.nesterov = nesterov
+        if self.nesterov and self.momentum == 0:
+            self.nesterov = False
 
     def build(self, params):
         """Initialize adam params"""
 
-        self.v = self._initialize_velocity(params)
+        self.v = {}
+        if self.momentum != 0:
+            self.v = self._initialize_velocity(params)
 
     def _initialize_velocity(self, params: dict[str, np.ndarray]):
         """
@@ -58,6 +62,24 @@ class SGD(Optimizer):
     def update(self, params, grads):
         """update weight"""
 
+        n_layer = len(params) // 2
+
+        for l in range(1, n_layer + 1):
+            if len(self.v) == 0:
+                params["W" + str(l)] -= self.lr * grads["dW" + str(l)]
+                params["b" + str(l)] -= self.lr * grads["db" + str(l)]
+
+            else:
+                self.v["dW" + str(l)] = self.momentum * self.v["dW" + str(l)] - self.lr * grads["dW" + str(l)]
+                self.v["db" + str(l)] = self.momentum * self.v["db" + str(l)] - self.lr * grads["db" + str(l)]
+                
+                if self.nesterov:
+                    params["W" + str(l)] += self.momentum * self.v["dW" + str(l)] - self.lr * grads["dW" + str(l)]
+                    params["b" + str(l)] += self.momentum * self.v["db" + str(l)] - self.lr * grads["db" + str(l)]
+                else:
+                    params["W" + str(l)] += self.v["dW" + str(l)]
+                    params["b" + str(l)] += self.v["db" + str(l)]
+
 
 class Adam(Optimizer):
     def __init__(
@@ -70,9 +92,9 @@ class Adam(Optimizer):
         name="adam"
     ):
         super().__init__(learning_rate, weight_decay, name)
-        self.beta_1 = beta_1
-        self.beta_2 = beta_2
-        self.epsilon = epsilon
+        self.b1 = beta_1
+        self.b2 = beta_2
+        self.eps = epsilon
 
     def build(self, params):
         """Initialize adam params"""
@@ -102,38 +124,32 @@ class Adam(Optimizer):
         return v, s
 
     def update(self, params: dict[str, np.ndarray], grads: dict[str, np.ndarray]):
-        """update weight"""
-
-        self.t += 1
-        self._update_parameters_with_adam(params, grads)
-
-    def _update_parameters_with_adam(
-            self,
-            params: dict[str, np.ndarray],
-            grads: dict[str, np.ndarray]
-        ):
         """
         Args
             params: dictonary type of weights and biases
             grads: dictonary type of gradients for each params
         """
-        
+
+        self.t += 1
+
         n_layer = len(params) // 2
-        v_corrected = {}
-        s_corrected = {}
+
+        beta_1_power = self.b1 ** self.t
+        beta_2_power = self.b2 ** self.t
         
         for l in range(1, n_layer + 1):
-            self.v["dW" + str(l)] = self.beta_1 * self.v["dW" + str(l)] + (1 - self.beta_1) * grads["dW" + str(l)]
-            self.v["db" + str(l)] = self.beta_1 * self.v["db" + str(l)] + (1 - self.beta_1) * grads["db" + str(l)]
+            self.v["dW" + str(l)] = self.b1 * self.v["dW" + str(l)] + (1 - self.b1) * grads["dW" + str(l)]
+            self.v["db" + str(l)] = self.b1 * self.v["db" + str(l)] + (1 - self.b1) * grads["db" + str(l)]
 
-            v_corrected["dW" + str(l)] = self.v["dW" + str(l)] / (1 - self.beta_1 ** self.t)
-            v_corrected["db" + str(l)] = self.v["db" + str(l)] / (1 - self.beta_1 ** self.t)
+            v_corrected = self.v["dW" + str(l)] / (1 - beta_1_power)
+            v_corrected = self.v["db" + str(l)] / (1 - beta_1_power)
 
-            self.s["dW" + str(l)] = self.beta_2 * self.s["dW" + str(l)] + (1 - self.beta_2) * grads["dW" + str(l)] * grads["dW" + str(l)]
-            self.s["db" + str(l)] = self.beta_2 * self.s["db" + str(l)] + (1 - self.beta_2) * grads["db" + str(l)] * grads["db" + str(l)]
+            self.s["dW" + str(l)] = self.b2 * self.s["dW" + str(l)] + (1 - self.b2) * np.square(grads["dW" + str(l)])
+            self.s["db" + str(l)] = self.b2 * self.s["db" + str(l)] + (1 - self.b2) * np.square(grads["db" + str(l)])
 
-            s_corrected["dW" + str(l)] = self.s["dW" + str(l)] / (1 - self.beta_2 ** self.t)
-            s_corrected["db" + str(l)] = self.s["db" + str(l)] / (1 - self.beta_2 ** self.t)
+            s_corrected = self.s["dW" + str(l)] / (1 - beta_2_power)
+            s_corrected = self.s["db" + str(l)] / (1 - beta_2_power)
 
-            params["W" + str(l)] -= self.learning_rate * v_corrected["dW" + str(l)] / (np.sqrt(s_corrected["dW" + str(l)]) + self.epsilon)
-            params["b" + str(l)] -= self.learning_rate * v_corrected["db" + str(l)] / (np.sqrt(s_corrected["db" + str(l)]) + self.epsilon)
+            params["W" + str(l)] -= self.lr * v_corrected / (np.sqrt(s_corrected) + self.eps)
+            params["b" + str(l)] -= self.lr * v_corrected / (np.sqrt(s_corrected) + self.eps)
+
