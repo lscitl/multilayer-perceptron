@@ -141,15 +141,15 @@ class Adam(Optimizer):
             self.v["dW" + str(l)] = self.b1 * self.v["dW" + str(l)] + (1 - self.b1) * grads["dW" + str(l)]
             self.v["db" + str(l)] = self.b1 * self.v["db" + str(l)] + (1 - self.b1) * grads["db" + str(l)]
 
-            v_corrected = self.v["dW" + str(l)] / (1 - beta_1_power)
-            v_corrected = self.v["db" + str(l)] / (1 - beta_1_power)
+            v_corrected_W = self.v["dW" + str(l)] / (1 - beta_1_power)
+            v_corrected_b = self.v["db" + str(l)] / (1 - beta_1_power)
 
             self.s["dW" + str(l)] = self.b2 * self.s["dW" + str(l)] + (1 - self.b2) * np.square(grads["dW" + str(l)])
             self.s["db" + str(l)] = self.b2 * self.s["db" + str(l)] + (1 - self.b2) * np.square(grads["db" + str(l)])
 
-            s_corrected = self.s["dW" + str(l)] / (1 - beta_2_power)
-            s_corrected = self.s["db" + str(l)] / (1 - beta_2_power)
+            s_corrected_W = self.s["dW" + str(l)] / (1 - beta_2_power)
+            s_corrected_b = self.s["db" + str(l)] / (1 - beta_2_power)
 
-            params["W" + str(l)] -= self.lr * v_corrected / (np.sqrt(s_corrected) + self.eps)
-            params["b" + str(l)] -= self.lr * v_corrected / (np.sqrt(s_corrected) + self.eps)
+            params["W" + str(l)] -= self.lr * v_corrected_W / (np.sqrt(s_corrected_W) + self.eps)
+            params["b" + str(l)] -= self.lr * v_corrected_b / (np.sqrt(s_corrected_b) + self.eps)
 
