@@ -5,7 +5,11 @@ if [ ! -e ~/goinfre/.brew/bin/python3.10 ]; then
 fi
 
 if [ ! -e ./bin/activate ]; then
-    ~/goinfre/.brew/bin/python3.10 -m venv ./
+    if [ ! -e ~/goinfre/.brew/bin/python3.10 ]; then
+        python3.10 -m venv ./
+    else
+        ~/goinfre/.brew/bin/python3.10 -m venv ./
+    fi
 fi
 
 source ./bin/activate
