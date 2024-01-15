@@ -52,23 +52,29 @@ if __name__ == "__main__":
         x_len = history.epoch
         plt.plot(x_len, y_loss, c='blue', label="Train-set Loss")
         
-        if "accuracy" in history.history.keys():
-            y_acc = history.history['accuracy']
-            plt.plot(x_len, y_acc, c='black', label="Train-set Acc")
-        
         if "val_loss" in history.history.keys():
             y_val_loss = history.history['val_loss']
             plt.plot(x_len, y_val_loss, c='red', label="Valid-set Loss")
-        
-        if "val_accuracy" in history.history.keys():
-            y_val_acc = history.history['val_accuracy']
-            plt.plot(x_len, y_val_acc, c='green', label="Valid-set Acc")
-
         plt.legend(loc='upper right')
         plt.grid()
         plt.xlabel('epoch')
         plt.ylabel('loss')
         plt.show()
+        
+        if "accuracy" in history.history.keys():
+            y_acc = history.history['accuracy']
+            plt.plot(x_len, y_acc, c='black', label="Train-set Acc")
+        
+        if "val_accuracy" in history.history.keys():
+            y_val_acc = history.history['val_accuracy']
+            plt.plot(x_len, y_val_acc, c='green', label="Valid-set Acc")
+
+        if "accuracy" in history.history.keys():
+            plt.legend(loc='lower right')
+            plt.grid()
+            plt.xlabel('epoch')
+            plt.ylabel('accuracy')
+            plt.show()
 
         eval = mlp.evaluate(x_train[-100:], y_train[-100:], batch_size=1, return_dict=False)
 
