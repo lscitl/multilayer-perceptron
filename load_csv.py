@@ -15,10 +15,13 @@ get absolute path of current directory."""
     return cur_dir
 
 
-def load(path: str) -> pd.DataFrame:
-    """def load(path: str) -> pd.DataFrame:
+def load(path: str, header=0) -> pd.DataFrame:
+    """
+    def load(path: str) -> pd.DataFrame:
 
-load data to pandas dataset"""
+    load data to pandas dataset
+    header: header variable for pandas read_csv()
+    """
 
     try:
         if not isinstance(path, str):
@@ -30,7 +33,7 @@ load data to pandas dataset"""
         if not os.path.isabs(path):
             path = get_cur_dir() + '/' + path
 
-        data = pd.read_csv(path, header=0)
+        data = pd.read_csv(path, header=header)
         # print("Loading dataset of dimensions:", data.shape)
 
         return data
