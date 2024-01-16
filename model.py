@@ -140,7 +140,7 @@ class Model:
 
         if len(x_train) == 0:
             raise ValueError("Expected input data to be non-empty.")
-
+        
         batch_max, batch_remain = divmod(x_train.shape[0], batch_size)
         if batch_remain:
             batch_max += 1
