@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import sys
-import os
+import shutil
 import pandas as pd
 import numpy as np
 from load_csv import load
@@ -15,36 +15,43 @@ def split_dataset(data: np.ndarray | pd.DataFrame | pd.Series, split_ratio: floa
     if one of return data length is 0, it will throw exception.
     """
 
-    assert isinstance(data, np.ndarray) or isinstance(pd.DataFrame) or isinstance(pd.Series), "not supported."
+    assert isinstance(data, np.ndarray) or isinstance(data, pd.DataFrame) or isinstance(data, pd.Series), "not supported."
     m = len(data)
     split_num = int(m * split_ratio)
     if split_num == 0 or split_num == m:
         raise AssertionError("one of return dataset length is 0.")
-    return data[: m - split_num], data[m - split_num:]
+    return data.iloc[: m - split_num, :], data.iloc[m - split_num:, :]
 
 
 if __name__ == "__main__":
 
     try:
+        print("Data file path or name: ", end="", flush=True)
+        path = sys.stdin.readline().strip("\n")
 
-        path = sys.stdin.readline("Data file path or name: ")
+        data: pd.DataFrame = load(path, None)
 
-        data: pd.DataFrame = load(path)
+        term_len = shutil.get_terminal_size()
 
         assert data is not None, "data load failure."
 
         while True:
             try:
-                split_ratio = float(sys.stdin.readline("Data ratio: "))
+                print("Data ratio: ", end="", flush=True)
+                split_ratio = float(sys.stdin.readline().strip('\n'))
                 break
+            except ValueError:
+                print("Invalid input. Try again")
             except:
-                None
+                msg = "Interrupted."
+                print(f"\r{msg:{term_len.columns}}")
+                break
 
         train, valid = split_dataset(data, split_ratio)
-
-        train.to_csv("train.csv")
-        valid.to_csv("valid.csv")
-
+        print(f"Data set will split to train set: {len(train)}, validation set: {len(valid)}")
+        
+        train.to_csv("train.csv", header=None, index=None)
+        valid.to_csv("valid.csv", header=None, index=None)
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
