@@ -54,7 +54,9 @@ class EarlyStopping(Callback):
 
         if epoch >= self.start_from_epoch:
             if self.best is None:
-                self.best = logs[self.monitor]
+                self.best = logs.get(self.monitor)
+                if self.best is None:
+                    print(f"Early stopping is not working for {self.monitor}")
             else:
                 # if monitor_op value is true, it is early stop condition.
                 if self.monitor_op(self.best, current):
