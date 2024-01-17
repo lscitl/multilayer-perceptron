@@ -27,7 +27,6 @@ if __name__ == "__main__":
         b = data_train.iloc[:, 1] == "B"
         y_train = pd.DataFrame({"M":m, "B":b})
         y_train = y_train.to_numpy().astype(int)
-        print(data_train)
 
         data_valid = valid_data
         x_valid = data_valid.iloc[:, 2:].to_numpy()
