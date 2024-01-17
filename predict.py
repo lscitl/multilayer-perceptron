@@ -18,19 +18,25 @@ if __name__ == "__main__":
 
         data_test = test_data
         x_test = data_test.iloc[:, 2:].to_numpy()
-        y_test = data_test.iloc[:, 1] == "M"
-        m = data_test.iloc[:, 1] == "M"
-        b = data_test.iloc[:, 1] == "B"
-        y_test = pd.DataFrame({"M":m, "B":b})
-        y_test = y_test.to_numpy().astype(int)
-        print(data_test)
+        y_test = data_test.iloc[:, 1]
 
         with open("model.pkl", "rb") as f:
             mlp: Model = pickle.load(f)
 
-        ans = mlp.predict(x_test)
+        predict = get_one_hot_value(mlp.predict(x_test)).astype(int)
 
-        print(np.all(get_one_hot_value(ans) == y_test, axis=1))
+        predict_list = []
+        for pred in predict:
+            if np.all(pred == np.array([1, 0])):
+                predict_list.append("M")
+            else:
+                predict_list.append("B")
+
+        result = pd.DataFrame({"real": y_test, "pred": np.array(predict_list)})
+        print(result)
+
+        accuracy = np.sum((result["real"] == result["pred"]).to_numpy().astype(int)) / len(result)
+        print(f"Accuracy: {accuracy * 100:.4}%")
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
