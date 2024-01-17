@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
         ans = mlp.predict(x_test)
 
-        print(get_one_hot_value(ans) == y_test)
+        print(np.all(get_one_hot_value(ans) == y_test, axis=1))
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
