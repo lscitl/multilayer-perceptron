@@ -48,11 +48,13 @@ if __name__ == "__main__":
         # optimizer = RMSprop(momentum=0.9)
         optimizer = Adam()
 
-        mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy'])
+        mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
+        # mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy'])
 
         mlp.summary()
 
-        es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
+        es = EarlyStopping(monitor="val_accuracy", patience=100, start_from_epoch=500)
+        # es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
         history = mlp.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=200, epochs=5000, callbacks=[es])
 
         y_loss = history.history['loss']
@@ -66,6 +68,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.xlabel('epoch')
         plt.ylabel('loss')
+        plt.title('Learning Curve')
         plt.show()
         
         if "accuracy" in history.history.keys():
@@ -81,6 +84,7 @@ if __name__ == "__main__":
             plt.grid()
             plt.xlabel('epoch')
             plt.ylabel('accuracy')
+            plt.title('Learning Curve')
             plt.show()
 
         with open("model.pkl", "wb") as f:
