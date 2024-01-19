@@ -3,7 +3,6 @@
 import sys
 import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
 from load_csv import load
 from model import Model, get_one_hot_value
 import pickle
