@@ -32,40 +32,6 @@ class Model:
         self.history = None
         self.stop_training = False
 
-    def _assert_compile(self):
-        """compile checker."""
-        assert self.iscompile, "model should be compiled before train/test the model."
-
-    def _print_params(self):
-        """print_params for debug."""
-
-        for key in self.params.keys():
-            print(key + ": ", self.params[key])
-
-    def add(self, layer: Layers):
-        """add layer"""
-
-        assert isinstance(layer, Layers), "invalid layer type."
-
-        if len(self.layer) == 0:
-            assert layer.type == LAYER.INPUT, "first layer should be INPUT layer."
-            self.layer.append(layer)
-
-        else:
-            assert layer.type != LAYER.INPUT, "Input layer can be set only in the first layer."
-            self.layer.append(layer)
-
-    @staticmethod
-    def sequential(layer: Iterable):
-        """Create modle with given layer"""
-
-        model = Model()
-        
-        for l in layer:
-            assert isinstance(l, Layers), "invalid layer is included."
-            model.add(l)
-        return model
-
     def compile(self, optimizer, loss, metrics=[]):
         """set optimizer, loss, metrics"""
 
@@ -220,16 +186,13 @@ class Model:
                             logs["val_mse"] = val_mse
                         case _:
                             pass
-
                 epoch_str += self._add_val_str(logs)
 
-            print(epoch_str, end="", flush=True)
-            print("")
+            print(epoch_str, flush=True)
 
             seed += 1
 
             self._callback_on_epoch_end(callback_tmp, epoch, logs)
-
             if self.stop_training:
                 # print(f"Epoch {epoch + 1}: model fitting is early stopped.")
                 break
@@ -237,86 +200,6 @@ class Model:
         self._callback_on_train_end(callback_tmp, logs)
 
         return self.history
-
-    def _make_batch_str(self, batch_start_time, batch_end_time, n_batch, batch_max, logs:dict):
-
-        batch_time_micro_s = int((batch_end_time - batch_start_time) * 1000000)
-        batch_time_ms, batch_time_micro_remain = divmod(batch_time_micro_s, 1000)
-        
-        batch_str = f"\r{n_batch + 1}/{batch_max}"
-        batch_time_s = 0
-        if batch_time_ms == 0:
-            batch_str += f" - 0s {batch_time_micro_remain}μs/step"
-        else:
-            if batch_time_ms > 1000:
-                batch_time_s, batch_time_ms = divmod(batch_time_ms, 1000)
-            batch_str += f" - {batch_time_s}s {batch_time_ms}ms/step"
-
-        batch_str += f" - loss: {logs['loss']:.4f}"
-
-        for metric in self.metrics:
-            if metric in logs.keys():
-                batch_str += f" - {metric}: {logs[metric]:.4f}"
-
-        return batch_str
-    
-    def _add_val_str(self, logs: dict):
-        epoch_str = ""
-        key = "val_loss"
-        if key in logs.keys():
-            epoch_str += f" - {key}: {logs[key]:.4f}"
-            
-        for metric in self.metrics:
-            key = "val_" + metric
-            if key in logs.keys():
-                epoch_str += f" - {key}: {logs[key]:.4f}"
-
-        return epoch_str
-
-    def _validation_split(self, x: np.ndarray, y: np.ndarray, validation_split: float):
-
-        split_len = min(max(1, int(len(x) * validation_split)), len(x))
-        train_len = len(x) - split_len
-        
-        X_train = x[:train_len]
-        Y_train = y[:train_len]
-        x_val = x[train_len:]
-        y_val = y[train_len:]
-
-        return X_train, x_val, Y_train, y_val
-
-    def _callback_on_epoch_end(self, callbacks: list[Callback], epoch: int, logs: dict=None):
-        for callback in callbacks:
-            callback.on_epoch_end(epoch, logs)
-
-    def _callback_on_train_begin(self, callbacks: list[Callback]):
-        for callback in callbacks:
-            callback.on_train_begin()
-
-    def _callback_on_train_end(self, callbacks: list[Callback], logs):
-        for callback in callbacks:
-            callback.on_train_end(logs)
-
-    def _get_accuracy_sum(self, y_hat: np.ndarray, y: np.ndarray):
-        """get accuracy summation"""
-
-        match self.loss:
-            case "binaryCrossentropy":
-                if y.ndim == 1 or y.shape[1] == 1:
-                    y_hat = y_hat >= 0.5
-                    return np.sum(y_hat)
-                elif y_hat.shape[1] != 1:
-                    y_hat = get_one_hot_value(y_hat)
-                    return np.sum(np.all(y_hat == y, axis=1))
-                else:
-                    raise AssertionError("loss error")
-            case _:
-                return None
-
-    def _get_mse_sum(self, y_hat: np.ndarray, y: np.ndarray):
-        """get mse summation"""
-
-        return np.sum(np.square(y - y_hat))
 
     def evaluate(self,
                  x: np.ndarray=None,
@@ -408,6 +291,101 @@ class Model:
         print(f"Total params: {total_params}")
         print("_________________________________________________________________")
 
+    def _assert_compile(self):
+        """compile checker."""
+        assert self.iscompile, "model should be compiled before train/test the model."
+
+    def _print_params(self):
+        """print_params for debug."""
+
+        for key in self.params.keys():
+            print(key + ": ", self.params[key])
+
+    def _make_batch_str(self, batch_start_time, batch_end_time, n_batch, batch_max, logs:dict):
+        """make processing string for batch loop."""
+
+        batch_time_micro_s = int((batch_end_time - batch_start_time) * 1000000)
+        batch_time_ms, batch_time_micro_remain = divmod(batch_time_micro_s, 1000)
+        
+        batch_str = f"\r{n_batch + 1}/{batch_max}"
+        batch_time_s = 0
+        if batch_time_ms == 0:
+            batch_str += f" - 0s {batch_time_micro_remain}μs/step"
+        else:
+            if batch_time_ms > 1000:
+                batch_time_s, batch_time_ms = divmod(batch_time_ms, 1000)
+            batch_str += f" - {batch_time_s}s {batch_time_ms}ms/step"
+
+        batch_str += f" - loss: {logs['loss']:.4f}"
+
+        for metric in self.metrics:
+            if metric in logs.keys():
+                batch_str += f" - {metric}: {logs[metric]:.4f}"
+
+        return batch_str
+    
+    def _add_val_str(self, logs: dict):
+        """add validation string if exist."""
+        epoch_str = ""
+        key = "val_loss"
+        if key in logs.keys():
+            epoch_str += f" - {key}: {logs[key]:.4f}"
+            
+        for metric in self.metrics:
+            key = "val_" + metric
+            if key in logs.keys():
+                epoch_str += f" - {key}: {logs[key]:.4f}"
+
+        return epoch_str
+
+    def _validation_split(self, x: np.ndarray, y: np.ndarray, validation_split: float):
+        """split data for validation."""
+
+        split_len = min(max(1, int(len(x) * validation_split)), len(x))
+        train_len = len(x) - split_len
+        
+        X_train = x[:train_len]
+        Y_train = y[:train_len]
+        x_val = x[train_len:]
+        y_val = y[train_len:]
+
+        return X_train, x_val, Y_train, y_val
+
+    def _callback_on_epoch_end(self, callbacks: list[Callback], epoch: int, logs: dict=None):
+        """callback when epoch end."""
+        for callback in callbacks:
+            callback.on_epoch_end(epoch, logs)
+
+    def _callback_on_train_begin(self, callbacks: list[Callback]):
+        """callback when start training."""
+        for callback in callbacks:
+            callback.on_train_begin()
+
+    def _callback_on_train_end(self, callbacks: list[Callback], logs):
+        """callback when training end."""
+        for callback in callbacks:
+            callback.on_train_end(logs)
+
+    def _get_accuracy_sum(self, y_hat: np.ndarray, y: np.ndarray):
+        """get accuracy summation."""
+
+        match self.loss:
+            case "binaryCrossentropy":
+                if y.ndim == 1 or y.shape[1] == 1:
+                    y_hat = y_hat >= 0.5
+                    return np.sum(y_hat)
+                elif y_hat.shape[1] != 1:
+                    y_hat = get_one_hot_value(y_hat)
+                    return np.sum(np.all(y_hat == y, axis=1))
+                else:
+                    raise AssertionError("loss error")
+            case _:
+                return None
+
+    def _get_mse_sum(self, y_hat: np.ndarray, y: np.ndarray):
+        """get mse summation."""
+
+        return np.sum(np.square(y - y_hat))
 
     def _init_params(self) -> None:
 
@@ -638,6 +616,7 @@ class Model:
 
 
 def relu(x: np.ndarray, max_val=None):
+    """relu function."""
     if max_val is not None:
         return np.minimum(max_val, np.maximum(0, x))
     return np.maximum(0, x)
