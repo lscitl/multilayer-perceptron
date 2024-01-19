@@ -45,13 +45,27 @@ if __name__ == "__main__":
             except:
                 msg = "Interrupted."
                 print(f"\r{msg:{term_len.columns}}")
-                break
+                quit()
 
-        train, valid = split_dataset(data, split_ratio)
-        print(f"Data set will split to train set: {len(train)}, validation set: {len(valid)}")
+        while True:
+            try:
+                print("File name for saving splitted data: ", end="", flush=True)
+                file_name = sys.stdin.readline().strip("\n")
+                if len(file_name) == 0:
+                    raise ValueError
+                break
+            except ValueError:
+                print("Invalid input. Try again")
+            except:
+                msg = "Interrupted."
+                print(f"\r{msg:{term_len.columns}}")
+                quit()
+
+        train, split = split_dataset(data, split_ratio)
+        print(f"Data set will split to train set: {len(train)}, splitted data set: {len(split)}")
         
         train.to_csv("train.csv", header=None, index=None)
-        valid.to_csv("valid.csv", header=None, index=None)
+        split.to_csv(f"{file_name}.csv", header=None, index=None)
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
