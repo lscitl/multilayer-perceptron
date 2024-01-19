@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 from load_csv import load
+from sequential import Sequential
 from model import Model
 from layers import Layers
 from callback import EarlyStopping
@@ -36,7 +37,7 @@ if __name__ == "__main__":
         y_valid = pd.DataFrame({"M":m, "B":b})
         y_valid = y_valid.to_numpy().astype(int)
 
-        mlp = Model.sequential([
+        mlp = Sequential([
             Layers.Input(x_train.shape[1]),
             Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
             Layers.Dense(24, activation='sigmoid', weights_initializer="heUniform"),
@@ -48,8 +49,8 @@ if __name__ == "__main__":
         # optimizer = RMSprop(momentum=0.9)
         optimizer = Adam()
 
-        mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
-        # mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy'])
+        # mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
+        mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy'])
 
         mlp.summary()
 
