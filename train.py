@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
         mlp.summary()
 
-        es = EarlyStopping(monitor="val_accuracy", patience=100, start_from_epoch=500)
+        es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
         # es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
         history = mlp.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=200, epochs=5000, callbacks=[es])
 
