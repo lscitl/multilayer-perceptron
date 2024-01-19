@@ -5,8 +5,6 @@ import time
 import pandas as pd
 import numpy as np
 
-from typing import Iterable
-
 from optimizer import Optimizer, Adam, SGD
 from initializer import Initializer
 from layers import LAYER, Layers
