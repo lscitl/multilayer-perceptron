@@ -2,15 +2,16 @@
 
 import sys
 import pandas as pd
-import numpy as np
+import pickle
+
 from matplotlib import pyplot as plt
 from load_csv import load
-from sequential import Sequential
-from model import Model
-from layers import Layers
-from callback import EarlyStopping
-from optimizer import SGD, RMSprop, Adam
-import pickle
+from smlp.model.sequential import Sequential
+from smlp.layer.layers import Layers
+from smlp.callback.earlystop import EarlyStopping
+from smlp.optimizer.sgd import SGD
+from smlp.optimizer.rmsprop import RMSprop
+from smlp.optimizer.adam import Adam
 
 if __name__ == "__main__":
 
@@ -46,8 +47,8 @@ if __name__ == "__main__":
         ])
 
         # optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
-        # optimizer = RMSprop(momentum=0.9)
-        optimizer = Adam()
+        optimizer = RMSprop(momentum=0.9)
+        # optimizer = Adam()
 
         # mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
         mlp.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy'])
@@ -55,7 +56,6 @@ if __name__ == "__main__":
         mlp.summary()
 
         es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
-        # es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
         history = mlp.fit(x_train, y_train, validation_data=(x_valid, y_valid), batch_size=200, epochs=5000, callbacks=[es])
 
         y_loss = history.history['loss']
@@ -91,9 +91,6 @@ if __name__ == "__main__":
         with open("model.pkl", "wb") as f:
             pickle.dump(mlp, f)
         print("model saved as 'model.pkl' to current directory.")
-        # eval = mlp.evaluate(x_train[-100:], y_train[-100:], batch_size=1, return_dict=False)
-
-        # print(mlp.predict(x_train[-100:]))
 
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}", file=sys.stderr)
