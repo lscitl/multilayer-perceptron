@@ -11,8 +11,8 @@ valid.csv
 test.csv
 model.pkl
 
-input
-output
+python_input
+python_output
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
