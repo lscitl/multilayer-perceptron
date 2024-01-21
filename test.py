@@ -1,9 +1,10 @@
 from typing import overload
 from functools import partial
 
-class tmp:
 
+class tmp:
     i = 0
+
     def __init__(self, a, b) -> None:
         print("class tmp init called.")
         tmp.i += 1
@@ -13,8 +14,8 @@ class tmp:
     def __repr__(self):
         return "tmp"
 
-class tmp2(tmp):
 
+class tmp2(tmp):
     def __init__(self, a=1, b=2):
         print("class tmp2 init called.")
         super().__init__(a, b)
@@ -22,8 +23,8 @@ class tmp2(tmp):
     def __repr__(self):
         return "tmp2"
 
-class tmp3(tmp2):
 
+class tmp3(tmp2):
     def __init__(self, a=3, b=3):
         print("class tmp3 init called.")
         super().__init__(a, b)
@@ -33,7 +34,6 @@ class tmp3(tmp2):
 
 
 if __name__ == "__main__":
-
     t3 = tmp3()
     t2 = tmp2()
 

@@ -8,7 +8,7 @@ import os
 def get_cur_dir() -> str:
     """def get_cur_dir() -> str:
 
-get absolute path of current directory."""
+    get absolute path of current directory."""
 
     abs_path = os.path.abspath(__file__)
     cur_dir = os.path.dirname(abs_path)
@@ -31,7 +31,7 @@ def load(path: str, header=0) -> pd.DataFrame:
             raise ValueError("invalid input value")
 
         if not os.path.isabs(path):
-            path = get_cur_dir() + '/' + path
+            path = get_cur_dir() + "/" + path
 
         data = pd.read_csv(path, header=header)
         # print("Loading dataset of dimensions:", data.shape)

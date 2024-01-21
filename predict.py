@@ -1,16 +1,14 @@
-#!/usr/bin/python3
-
 import sys
+import pickle
 import pandas as pd
 import numpy as np
+
 from load_csv import load
-from model import Model, get_one_hot_value
-import pickle
+from smlp.models import Model
+from smlp.utils import get_one_hot_value
 
 if __name__ == "__main__":
-
     try:
-
         test_data: pd.DataFrame = load("test.csv", header=None)
 
         assert test_data is not None, "data load failure."
@@ -34,7 +32,9 @@ if __name__ == "__main__":
         result = pd.DataFrame({"real": y_test, "pred": np.array(predict_list)})
         print(result)
 
-        accuracy = np.sum((result["real"] == result["pred"]).to_numpy().astype(int)) / len(result)
+        accuracy = np.sum(
+            (result["real"] == result["pred"]).to_numpy().astype(int)
+        ) / len(result)
         print(f"Accuracy: {accuracy * 100:.4}%")
 
     except Exception as e:
