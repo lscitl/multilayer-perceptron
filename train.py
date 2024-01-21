@@ -70,7 +70,16 @@ if __name__ == "__main__":
             batch_size=200,
             epochs=5000,
             callbacks=[es],
+            standard_scaler=True,
         )
+        # fit_history = mlp.fit(
+        #     x_train,
+        #     y_train,
+        #     validation_data=(x_valid, y_valid),
+        #     batch_size=200,
+        #     epochs=5000,
+        #     callbacks=[es],
+        # )
 
         y_loss = fit_history.history["loss"]
         x_len = fit_history.epoch
