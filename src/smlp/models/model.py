@@ -34,6 +34,12 @@ class Model:
         self.history = None
         self.stop_training = False
 
+        self.is_train = False
+
+        self.standard_scaler = False
+        self.data_mean = None
+        self.data_std = None
+
     def compile(self, optimizer, loss, metrics=[]):
         """set optimizer, loss, metrics"""
 
@@ -75,6 +81,7 @@ class Model:
         shuffle: bool = True,
         validation_split: float = 0.0,
         validation_data: tuple[np.ndarray, np.ndarray] = None,
+        standard_scaler=False,
     ) -> History:
         """train data."""
 
@@ -91,15 +98,34 @@ class Model:
         for cb in callback_tmp:
             cb.set_model(self)
 
+        if standard_scaler is False and self.data_mean is not None:
+            print(
+                "the model is already trained with standard scaler.\n"
+                "keep training with standard scaler."
+            )
+        elif standard_scaler and self.is_train and self.data_mean is None:
+            print(
+                "the model is already trained without standard scaler.\n"
+                "keep training without standard scaler."
+            )
+        if standard_scaler and self.is_train is False:
+            self.data_mean = x.mean(axis=0)
+            self.data_std = x.std(axis=0)
+
+        if self.data_mean is not None:
+            x = (x - self.data_mean) / self.data_std
+
         self._callback_on_train_begin(callback_tmp)
 
-        seed = int(time.time() * 1000000) & 0xFFFFFFFF
+        seed = int(time.time() * 1000000) % 0x100000000
 
         have_validation = False
 
         # validation split or data check
         if validation_data is not None:
             x_val, y_val = validation_data
+            if self.data_mean is not None:
+                x_val = (x_val - self.data_mean) / self.data_std
             x_train, y_train = x, y
             have_validation = True
         elif validation_split:
@@ -210,6 +236,7 @@ class Model:
                 break
 
         self._callback_on_train_end(callback_tmp, logs)
+        self.is_train = True
 
         return self.history
 
@@ -224,6 +251,9 @@ class Model:
 
         self._assert_compile()
 
+        if self.data_mean is not None:
+            x = (x - self.data_mean) / self.data_std
+
         batch_max, batch_remain = divmod(x.shape[0], batch_size)
         if batch_remain:
             batch_max += 1
@@ -234,7 +264,7 @@ class Model:
         train_size = 0
         logs = {}
         for n_batch in range(batch_max):
-            batch_start_time = time.time() * 1000000
+            batch_start_time = time.time()
             x_mini_batch = x[n_batch * batch_size : (n_batch + 1) * batch_size]
             y_mini_batch = y[n_batch * batch_size : (n_batch + 1) * batch_size]
 
@@ -260,7 +290,7 @@ class Model:
                     case _:
                         pass
 
-            batch_end_time = time.time() * 1000000
+            batch_end_time = time.time()
             batch_str = self._make_batch_str(
                 batch_start_time, batch_end_time, n_batch, batch_max, logs
             )
@@ -275,6 +305,9 @@ class Model:
         """predict."""
 
         self._assert_compile()
+
+        if self.data_mean is not None:
+            x = (x - self.data_mean) / self.data_std
 
         predict, _ = self._model_forward(x)
 
