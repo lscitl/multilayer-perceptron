@@ -14,4 +14,4 @@ fi
 
 source ./bin/activate
 
-pip install numpy pandas matplotlib black seaborn tensorflow
+pip install numpy pandas matplotlib black seaborn tensorflow ./src
