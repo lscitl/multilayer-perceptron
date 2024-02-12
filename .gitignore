@@ -9,7 +9,8 @@ pyvenv.cfg
 train.csv
 valid.csv
 test.csv
-model.pkl
+
+*.pkl
 
 python_input
 python_output
