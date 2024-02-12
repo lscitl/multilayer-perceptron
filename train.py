@@ -52,9 +52,9 @@ if __name__ == "__main__":
             ]
         )
 
-        optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        # optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
         # optimizer = RMSprop(momentum=0.9)
-        # optimizer = Adam()
+        optimizer = Adam()
 
         # model.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
         model.compile(
@@ -78,14 +78,6 @@ if __name__ == "__main__":
             callbacks=[es],
             standard_scaler=True,
         )
-        # fit_history = model.fit(
-        #     x_train,
-        #     y_train,
-        #     validation_data=(x_valid, y_valid),
-        #     batch_size=200,
-        #     epochs=5000,
-        #     callbacks=[es],
-        # )
 
         keys = [key for key in fit_history.history.keys() if "val_" not in key]
         n_graph = len(keys)

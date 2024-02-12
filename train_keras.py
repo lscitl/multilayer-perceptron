@@ -77,13 +77,17 @@ if __name__ == "__main__":
             ]
         )
 
-        # optimizer = keras.optimizers.Adam()
-        # optimizer = keras.optimizers.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        # optimizer = keras.optimizers.SGD(
+        #     learning_rate=0.01, momentum=0.9, nesterov=True
+        # )
         # optimizer = keras.optimizers.RMSprop(momentum=0.9)
+        optimizer = keras.optimizers.Adam()
 
-        # optimizer = keras.optimizers.legacy.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        # optimizer = keras.optimizers.legacy.SGD(
+        #     learning_rate=0.01, momentum=0.9, nesterov=True
+        # )
         # optimizer = keras.optimizers.legacy.RMSprop(momentum=0.9)
-        optimizer = keras.optimizers.legacy.Adam()
+        # optimizer = keras.optimizers.legacy.Adam()
 
         model.compile(
             optimizer=optimizer,
