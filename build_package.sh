@@ -2,6 +2,8 @@
 
 source $PWD/bin/activate
 
-python -m build ./smlp_package
+if [ ! -e "./smlp_package/dist" ]; then
+    python -m build ./smlp_package
+fi
 
 pip install ./smlp_package/dist/smlp-*.whl
