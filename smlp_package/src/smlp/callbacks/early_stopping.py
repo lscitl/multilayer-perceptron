@@ -24,14 +24,14 @@ class EarlyStopping(Callback):
                 elif "acc" in monitor:
                     self.monitor_op = eq_greater
                 else:
-                    AssertionError(
+                    raise AssertionError(
                         "Mode 'auto' is not supported for current monitor value."
                     )
 
     def on_epoch_end(self, epoch, logs: dict = None):
         current = logs.get(self.monitor)
         if current is None:
-            ValueError("monitor value is not valid.")
+            raise ValueError("monitor value is not valid.")
 
         if epoch >= self.start_from_epoch:
             if self.best is None:
