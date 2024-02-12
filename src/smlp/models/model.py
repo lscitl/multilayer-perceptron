@@ -117,7 +117,7 @@ class Model:
 
         self._callback_on_train_begin(callback_tmp)
 
-        seed = int(time.time() * 1000000) % 0x100000000
+        seed = (time.time_ns() // 1000) & 0xFFFFFFFF
 
         have_validation = False
 
@@ -679,6 +679,9 @@ class Model:
         self.optimizer.update(self.params, self.grads)
 
         return self.grads
+
+    def get_data_mean_std(self) -> tuple[float | None, float | None]:
+        return self.data_mean, self.data_std
 
 
 if __name__ == "__main__":
