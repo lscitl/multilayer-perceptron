@@ -43,7 +43,7 @@ if __name__ == "__main__":
             if data_mean is not None:
                 x_train = (x_train - data_mean) / data_std
                 x_valid = (x_valid - data_mean) / data_std
-            print(f"data_mean: {data_mean}, data_std: {data_std} applied")
+                print("standard scaler from smlp applied")
 
         # seed range should be 0 to (2 ** 32 - 1)
         initializer = keras.initializers.HeUniform(

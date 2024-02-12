@@ -24,7 +24,7 @@ if __name__ == "__main__":
                 data_mean, data_std = pickle.load(f)
             if data_mean is not None:
                 x_test = (x_test - data_mean) / data_std
-            print(f"data_mean: {data_mean}, data_std: {data_std} applied")
+                print("standard scaler from smlp applied")
 
         with open("model_keras.pkl", "rb") as f:
             model = pickle.load(f)
