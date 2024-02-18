@@ -6,7 +6,7 @@ from smlp.optimizers.sgd import SGD
 from smlp.optimizers.adam import Adam
 from smlp.optimizers.rmsprop import RMSprop
 from smlp.initializers.zeros import zeros
-from smlp.layers.layers import LAYER, Layers
+from smlp.layers.layer import LAYER, Layer
 from smlp.callbacks.callback import Callback
 from smlp.callbacks.history import History
 
@@ -22,7 +22,7 @@ class Model:
     """
 
     def __init__(self):
-        self.layer: list[Layers] = []
+        self.layer: list[Layer] = []
         self.params: dict = {}
         self.grads: dict = {}
 

@@ -1,24 +1,24 @@
 from typing import Iterable
 from smlp.models.model import Model
-from smlp.layers.layers import Layers, LAYER
+from smlp.layers.layer import Layer, LAYER
 
 
 class Sequential(Model):
     """Sequential class for multilayer perceptron model."""
 
-    def __init__(self, layers: Iterable[Layers]):
+    def __init__(self, layers: Iterable[Layer]):
         """Create modle with given layer"""
 
         super().__init__()
 
         for layer in layers:
-            assert isinstance(layer, Layers), "invalid layer is included."
+            assert isinstance(layer, Layer), "invalid layer is included."
             self.add(layer)
 
-    def add(self, layer: Layers):
+    def add(self, layer: Layer):
         """add layer"""
 
-        assert isinstance(layer, Layers), "invalid layer type."
+        assert isinstance(layer, Layer), "invalid layer type."
 
         if len(self.layer) == 0:
             assert layer.type == LAYER.INPUT, "first layer should be INPUT layer."
