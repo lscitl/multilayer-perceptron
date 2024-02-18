@@ -6,14 +6,20 @@
 .DS_Store
 pyvenv.cfg
 
+# package
+/smlp_package/dist
+
+# data set
 train.csv
 valid.csv
 test.csv
 
+# model, param
 *.pkl
 
 python_input
 python_output
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
