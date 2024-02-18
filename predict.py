@@ -1,3 +1,4 @@
+import os
 import sys
 import pickle
 import pandas as pd
@@ -17,6 +18,7 @@ if __name__ == "__main__":
         x_test = data_test.iloc[:, 2:].to_numpy()
         y_test = data_test.iloc[:, 1]
 
+        assert os.path.exists("model.pkl"), "smlp model is not found."
         with open("model.pkl", "rb") as f:
             model: Model = pickle.load(f)
 

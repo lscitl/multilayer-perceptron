@@ -26,6 +26,7 @@ if __name__ == "__main__":
                 x_test = (x_test - data_mean) / data_std
                 print("standard scaler from smlp applied")
 
+        assert os.path.exists("model_keras.pkl"), "keras model is not found."
         with open("model_keras.pkl", "rb") as f:
             model = pickle.load(f)
 

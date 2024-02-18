@@ -7,10 +7,7 @@ import pickle
 from matplotlib import pyplot as plt
 from load_csv import load
 
-from smlp.models import Sequential
-from smlp.layers import Layers
-from smlp.callbacks import EarlyStopping
-from smlp.optimizers import SGD, RMSprop, Adam
+import smlp
 
 
 if __name__ == "__main__":
@@ -36,25 +33,41 @@ if __name__ == "__main__":
         y_valid = pd.DataFrame({"M": m, "B": b})
         y_valid = y_valid.to_numpy().astype(int)
 
-        model = Sequential(
+        # initializer = "glorotUniform"
+        initializer = "heUniform"
+
+        model = smlp.Sequential(
             [
-                Layers.Input(x_train.shape[1]),
-                Layers.Dense(24, activation="sigmoid", weights_initializer="heUniform"),
-                Layers.Dense(24, activation="sigmoid", weights_initializer="heUniform"),
-                # Layers.Dense(24, activation="sigmoid", weights_initializer="heUniform"),
-                # Layers.Dense(24, activation="sigmoid", weights_initializer="heUniform"),
-                Layers.Dense(24, activation="sigmoid", weights_initializer="heUniform"),
-                Layers.Dense(
+                smlp.layers.Input(x_train.shape[1]),
+                smlp.layers.Dense(
+                    24, activation="sigmoid", weights_initializer=initializer
+                ),
+                smlp.layers.Dense(
+                    24, activation="sigmoid", weights_initializer=initializer
+                ),
+                # smlp.layers.Dense(
+                #     24, activation="sigmoid", weights_initializer=initializer
+                # ),
+                # smlp.layers.Dense(
+                #     24, activation="sigmoid", weights_initializer=initializer
+                # ),
+                smlp.layers.Dense(
+                    24, activation="sigmoid", weights_initializer=initializer
+                ),
+                smlp.layers.Dense(
                     y_train.shape[1],
                     activation="softmax",
-                    weights_initializer="heUniform",
+                    weights_initializer=initializer,
                 ),
             ]
         )
 
-        # optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
-        # optimizer = RMSprop(momentum=0.9)
-        optimizer = Adam()
+        optimizer = smlp.optimizers.SGD(
+            learning_rate=0.01, momentum=0.0, nesterov=False
+        )
+        # optimizer = smlp.optimizers.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        # optimizer = smlp.optimizers.RMSprop(momentum=0.9)
+        # optimizer = smlp.optimizers.Adam()
 
         # model.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
         model.compile(
@@ -67,7 +80,9 @@ if __name__ == "__main__":
         model.summary()
 
         # es = EarlyStopping(monitor="val_accuracy", patience=100, start_from_epoch=500)
-        es = EarlyStopping(monitor="val_loss", patience=100, start_from_epoch=500)
+        es = smlp.callbacks.EarlyStopping(
+            monitor="val_loss", patience=100, start_from_epoch=500
+        )
 
         fit_history = model.fit(
             x_train,

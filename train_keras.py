@@ -49,6 +49,10 @@ if __name__ == "__main__":
         initializer = keras.initializers.HeUniform(
             seed=(time.time_ns() // 1000) & 0xFFFFFFFF
         )
+        
+        # initializer = keras.initializers.GlorotUniform(
+        #     seed=(time.time_ns() // 1000) & 0xFFFFFFFF
+        # )
 
         # keras model setting
         model = keras.Sequential(
@@ -77,11 +81,14 @@ if __name__ == "__main__":
             ]
         )
 
+        optimizer = keras.optimizers.SGD(
+            learning_rate=0.01, momentum=0, nesterov=False
+        )
         # optimizer = keras.optimizers.SGD(
         #     learning_rate=0.01, momentum=0.9, nesterov=True
         # )
         # optimizer = keras.optimizers.RMSprop(momentum=0.9)
-        optimizer = keras.optimizers.Adam()
+        # optimizer = keras.optimizers.Adam()
 
         # optimizer = keras.optimizers.legacy.SGD(
         #     learning_rate=0.01, momentum=0.9, nesterov=True
