@@ -14,7 +14,7 @@ class LAYER(Enum):
     # DROPOUT = auto()
 
 
-class Layers:
+class Layer:
     """
     layer class
 
@@ -61,24 +61,8 @@ class Layers:
                 raise AssertionError("Invalid initializer.")
 
     @staticmethod
-    def Input(layer_dim: int):
-        """Create dense layer."""
-
-        return Layers(LAYER.INPUT, layer_dim, None, None)
-
-    @staticmethod
-    def Dense(
-        layer_dim: int,
-        activation: str | Callable,
-        weights_initializer: str = "glorotNormal",
-    ):
-        """Create dense layer."""
-
-        return Layers(LAYER.DENSE, layer_dim, activation, weights_initializer)
-
-    @staticmethod
     def getLayer(layer: LAYER) -> str:
-        return Layers.layer_to_str[layer]
+        return Layer.layer_to_str[layer]
 
     def getLayer(self) -> str:
         return self.layer_to_str[self.type]
