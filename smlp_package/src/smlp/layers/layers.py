@@ -11,7 +11,7 @@ from smlp.initializers import zeros
 class LAYER(Enum):
     INPUT = auto()
     DENSE = auto()
-    DROPOUT = auto()
+    # DROPOUT = auto()
 
 
 class Layers:
@@ -23,7 +23,7 @@ class Layers:
     layer_to_str = {
         LAYER.INPUT: "Input",
         LAYER.DENSE: "Dense",
-        LAYER.DROPOUT: "Dropout",
+        # LAYER.DROPOUT: "Dropout",
     }
 
     def __init__(
@@ -40,14 +40,14 @@ class Layers:
 
         if layer_type != LAYER.INPUT:
             if isinstance(weights_initializer, str):
-                match weights_initializer:
-                    case "heNormal":
+                match weights_initializer.lower():
+                    case "henormal":
                         self.weights_initializer = heNormal()
-                    case "heUniform":
+                    case "heuniform":
                         self.weights_initializer = heUniform()
-                    case "glorotNormal" | "xavierNormal":
+                    case "glorotnormal" | "xaviernormal":
                         self.weights_initializer = glorotNormal()
-                    case "glorotUniform" | "xavierUniform":
+                    case "glorotuniform" | "xavieruniform":
                         self.weights_initializer = glorotUniform()
                     case "zero":
                         self.weights_initializer = zeros()
