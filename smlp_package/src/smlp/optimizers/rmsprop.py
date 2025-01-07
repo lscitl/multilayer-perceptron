@@ -28,7 +28,7 @@ class RMSprop(Optimizer):
 
         Return
             v: the exponentially weighted average of the gradient
-            s: the exponentially weighted average of the squared gradient
+            m: update value(increment W, b) calculated by momentum
         """
 
         n_layer = len(params) // 2

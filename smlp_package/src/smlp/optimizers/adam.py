@@ -37,10 +37,15 @@ class Adam(Optimizer):
         s = {}
 
         for l in range(1, n_layer + 1):
-            v["dW" + str(l)] = np.zeros(params["W" + str(l)].shape)
-            v["db" + str(l)] = np.zeros(params["b" + str(l)].shape)
-            s["dW" + str(l)] = np.zeros(params["W" + str(l)].shape)
-            s["db" + str(l)] = np.zeros(params["b" + str(l)].shape)
+            dW = "dW" + str(l)
+            W = "W" + str(l)
+            db = "db" + str(l)
+            b = "b" + str(l)
+
+            v[dW] = np.zeros(params[W].shape)
+            v[db] = np.zeros(params[b].shape)
+            s[dW] = np.zeros(params[W].shape)
+            s[db] = np.zeros(params[b].shape)
 
         return v, s
 
