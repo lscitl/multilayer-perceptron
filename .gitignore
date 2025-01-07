@@ -6,6 +6,9 @@
 .DS_Store
 pyvenv.cfg
 
+# env
+/smlp
+
 # package
 /smlp_package/dist
 
