@@ -82,7 +82,7 @@ if __name__ == "__main__":
         )
 
         optimizer = keras.optimizers.SGD(
-            learning_rate=0.01, momentum=0, nesterov=False
+            learning_rate=0.01, momentum=0.0, nesterov=False
         )
         # optimizer = keras.optimizers.SGD(
         #     learning_rate=0.01, momentum=0.9, nesterov=True
