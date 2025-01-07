@@ -19,7 +19,7 @@ source ./smlp/bin/activate
 
 echo "upgrade pip and install packages..."
 pip -q install --upgrade pip
-pip -q install numpy pandas matplotlib black seaborn tensorflow build
+pip -q install numpy pandas matplotlib black seaborn tensorflow build PyQt6
 
 echo "environment setting is finished!"
 echo "run 'source ./smlp/bin/activate' to activate virtual environment."
