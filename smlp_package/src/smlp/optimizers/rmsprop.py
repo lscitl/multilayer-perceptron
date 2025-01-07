@@ -36,11 +36,16 @@ class RMSprop(Optimizer):
         m = {}
 
         for l in range(1, n_layer + 1):
-            v["dW" + str(l)] = np.zeros(params["W" + str(l)].shape)
-            v["db" + str(l)] = np.zeros(params["b" + str(l)].shape)
+            dW = "dW" + str(l)
+            W = "W" + str(l)
+            db = "db" + str(l)
+            b = "b" + str(l)
+
+            v[dW] = np.zeros(params[W].shape)
+            v[db] = np.zeros(params[b].shape)
             if self.momentum > 0:
-                m["dW" + str(l)] = np.zeros(params["W" + str(l)].shape)
-                m["db" + str(l)] = np.zeros(params["b" + str(l)].shape)
+                m[dW] = np.zeros(params[W].shape)
+                m[db] = np.zeros(params[b].shape)
 
         return v, m
 
@@ -55,33 +60,24 @@ class RMSprop(Optimizer):
         rho = self.rho
 
         for l in range(1, n_layer + 1):
-            self.v["dW" + str(l)] = rho * self.v["dW" + str(l)] + (1 - rho) * np.square(
-                grads["dW" + str(l)]
-            )
-            self.v["db" + str(l)] = rho * self.v["db" + str(l)] + (1 - rho) * np.square(
-                grads["db" + str(l)]
-            )
+            dW = "dW" + str(l)
+            W = "W" + str(l)
+            db = "db" + str(l)
+            b = "b" + str(l)
 
-            increment_W = np.divide(
-                self.lr * grads["dW" + str(l)],
-                np.sqrt(self.v["dW" + str(l)] + self.eps),
-            )
-            increment_b = np.divide(
-                self.lr * grads["db" + str(l)],
-                np.sqrt(self.v["db" + str(l)] + self.eps),
-            )
+            self.v[dW] = rho * self.v[dW] + (1 - rho) * np.square(grads[dW])
+            self.v[db] = rho * self.v[db] + (1 - rho) * np.square(grads[db])
+
+            increment_W = np.divide(self.lr * grads[dW], np.sqrt(self.v[dW] + self.eps))
+            increment_b = np.divide(self.lr * grads[db], np.sqrt(self.v[db] + self.eps))
 
             if self.momentum > 0:
-                self.m["dW" + str(l)] = (
-                    self.momentum * self.m["dW" + str(l)] + increment_W
-                )
-                self.m["db" + str(l)] = (
-                    self.momentum * self.m["db" + str(l)] + increment_b
-                )
+                self.m[dW] = self.momentum * self.m[dW] + increment_W
+                self.m[db] = self.momentum * self.m[db] + increment_b
 
-                params["W" + str(l)] -= self.m["dW" + str(l)]
-                params["b" + str(l)] -= self.m["db" + str(l)]
+                params[W] -= self.m[dW]
+                params[b] -= self.m[db]
 
             else:
-                params["W" + str(l)] -= increment_W
-                params["b" + str(l)] -= increment_b
+                params[W] -= increment_W
+                params[b] -= increment_b

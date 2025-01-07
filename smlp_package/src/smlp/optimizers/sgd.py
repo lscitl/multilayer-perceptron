@@ -52,29 +52,22 @@ class SGD(Optimizer):
         n_layer = len(params) // 2
 
         for l in range(1, n_layer + 1):
+            dW = "dW" + str(l)
+            W = "W" + str(l)
+            db = "db" + str(l)
+            b = "b" + str(l)
+
             if len(self.v) == 0:
-                params["W" + str(l)] -= self.lr * grads["dW" + str(l)]
-                params["b" + str(l)] -= self.lr * grads["db" + str(l)]
+                params[W] -= self.lr * grads[dW]
+                params[b] -= self.lr * grads[db]
 
             else:
-                self.v["dW" + str(l)] = (
-                    self.momentum * self.v["dW" + str(l)]
-                    - self.lr * grads["dW" + str(l)]
-                )
-                self.v["db" + str(l)] = (
-                    self.momentum * self.v["db" + str(l)]
-                    - self.lr * grads["db" + str(l)]
-                )
+                self.v[dW] = self.momentum * self.v[dW] - self.lr * grads[dW]
+                self.v[db] = self.momentum * self.v[db] - self.lr * grads[db]
 
                 if self.nesterov:
-                    params["W" + str(l)] += (
-                        self.momentum * self.v["dW" + str(l)]
-                        - self.lr * grads["dW" + str(l)]
-                    )
-                    params["b" + str(l)] += (
-                        self.momentum * self.v["db" + str(l)]
-                        - self.lr * grads["db" + str(l)]
-                    )
+                    params[W] += self.momentum * self.v[dW] - self.lr * grads[dW]
+                    params[b] += self.momentum * self.v[db] - self.lr * grads[db]
                 else:
-                    params["W" + str(l)] += self.v["dW" + str(l)]
-                    params["b" + str(l)] += self.v["db" + str(l)]
+                    params[W] += self.v[dW]
+                    params[b] += self.v[db]

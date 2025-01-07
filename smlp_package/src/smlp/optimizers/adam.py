@@ -59,29 +59,22 @@ class Adam(Optimizer):
         beta_2_power = self.b2**self.t
 
         for l in range(1, n_layer + 1):
-            self.v["dW" + str(l)] = (
-                self.b1 * self.v["dW" + str(l)] + (1 - self.b1) * grads["dW" + str(l)]
-            )
-            self.v["db" + str(l)] = (
-                self.b1 * self.v["db" + str(l)] + (1 - self.b1) * grads["db" + str(l)]
-            )
+            dW = "dW" + str(l)
+            W = "W" + str(l)
+            db = "db" + str(l)
+            b = "b" + str(l)
 
-            v_corrected_W = self.v["dW" + str(l)] / (1 - beta_1_power)
-            v_corrected_b = self.v["db" + str(l)] / (1 - beta_1_power)
+            self.v[dW] = self.b1 * self.v[dW] + (1 - self.b1) * grads[dW]
+            self.v[db] = self.b1 * self.v[db] + (1 - self.b1) * grads[db]
 
-            self.s["dW" + str(l)] = self.b2 * self.s["dW" + str(l)] + (
-                1 - self.b2
-            ) * np.square(grads["dW" + str(l)])
-            self.s["db" + str(l)] = self.b2 * self.s["db" + str(l)] + (
-                1 - self.b2
-            ) * np.square(grads["db" + str(l)])
+            v_corrected_W = self.v[dW] / (1 - beta_1_power)
+            v_corrected_b = self.v[db] / (1 - beta_1_power)
 
-            s_corrected_W = self.s["dW" + str(l)] / (1 - beta_2_power)
-            s_corrected_b = self.s["db" + str(l)] / (1 - beta_2_power)
+            self.s[dW] = self.b2 * self.s[dW] + (1 - self.b2) * np.square(grads[dW])
+            self.s[db] = self.b2 * self.s[db] + (1 - self.b2) * np.square(grads[db])
 
-            params["W" + str(l)] -= (
-                self.lr * v_corrected_W / (np.sqrt(s_corrected_W) + self.eps)
-            )
-            params["b" + str(l)] -= (
-                self.lr * v_corrected_b / (np.sqrt(s_corrected_b) + self.eps)
-            )
+            s_corrected_W = self.s[dW] / (1 - beta_2_power)
+            s_corrected_b = self.s[db] / (1 - beta_2_power)
+
+            params[W] -= self.lr * v_corrected_W / (np.sqrt(s_corrected_W) + self.eps)
+            params[b] -= self.lr * v_corrected_b / (np.sqrt(s_corrected_b) + self.eps)
