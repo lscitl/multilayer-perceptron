@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source $PWD/bin/activate
+source $PWD/smlp/bin/activate
 
 rm -rf "./smlp_package/dist"
 

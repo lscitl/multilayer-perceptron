@@ -9,17 +9,17 @@ fi
 echo "setup virtual environment."
 if [ ! -e ./bin/activate ]; then
     if [ ! -e ~/goinfre/.brew/bin/python3.10 ]; then
-        python3.10 -m venv ./
+        python3.10 -m venv ./smlp
     else
-        ~/goinfre/.brew/bin/python3.10 -m venv ./
+        ~/goinfre/.brew/bin/python3.10 -m venv ./smlp
     fi
 fi
 
-source ./bin/activate
+source ./smlp/bin/activate
 
 echo "upgrade pip and install packages..."
 pip -q install --upgrade pip
 pip -q install numpy pandas matplotlib black seaborn tensorflow build
 
 echo "environment setting is finished!"
-echo "run 'source ./bin/activate' to activate virtual environment."
+echo "run 'source ./smlp/bin/activate' to activate virtual environment."
