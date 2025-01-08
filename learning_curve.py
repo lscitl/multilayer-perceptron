@@ -51,32 +51,35 @@ if __name__ == "__main__":
         # initializer = "glorotUniform"
         initializer = "heUniform"
 
-        model = smlp.Sequential(
-            [
-                smlp.layers.Input(x_train.shape[1]),
-                smlp.layers.Dense(
-                    24, activation="sigmoid", weights_initializer=initializer
-                ),
-                smlp.layers.Dense(
-                    24, activation="sigmoid", weights_initializer=initializer
-                ),
-                # smlp.layers.Dense(
-                #     24, activation="sigmoid", weights_initializer=initializer
-                # ),
-                # smlp.layers.Dense(
-                #     24, activation="sigmoid", weights_initializer=initializer
-                # ),
-                smlp.layers.Dense(
-                    24, activation="sigmoid", weights_initializer=initializer
-                ),
-                smlp.layers.Dense(
-                    y_train.shape[1],
-                    activation="softmax",
-                    weights_initializer=initializer,
-                ),
-            ]
-        )
+        model_list = []
+        for _ in range(4):
+            model_list.append(smlp.Sequential(
+                [
+                    smlp.layers.Input(x_train.shape[1]),
+                    smlp.layers.Dense(
+                        24, activation="sigmoid", weights_initializer=initializer
+                    ),
+                    smlp.layers.Dense(
+                        24, activation="sigmoid", weights_initializer=initializer
+                    ),
+                    # smlp.layers.Dense(
+                    #     24, activation="sigmoid", weights_initializer=initializer
+                    # ),
+                    # smlp.layers.Dense(
+                    #     24, activation="sigmoid", weights_initializer=initializer
+                    # ),
+                    smlp.layers.Dense(
+                        24, activation="sigmoid", weights_initializer=initializer
+                    ),
+                    smlp.layers.Dense(
+                        y_train.shape[1],
+                        activation="softmax",
+                        weights_initializer=initializer,
+                    ),
+                ]
+            ))
 
+        optimizer_list = []
         optimizer = smlp.optimizers.SGD(
             learning_rate=0.01, momentum=0.0, nesterov=False
         )
@@ -85,12 +88,13 @@ if __name__ == "__main__":
         # optimizer = smlp.optimizers.Adam()
 
         # model.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
-        model.compile(
-            optimizer=optimizer,
-            loss="binaryCrossentropy",
-            metrics=["accuracy"],
-            # metrics=["accuracy", "mse"],
-        )
+        for model in model_list:
+            model.compile(
+                optimizer=optimizer,
+                loss="binaryCrossentropy",
+                metrics=["accuracy"],
+                # metrics=["accuracy", "mse"],
+            )
 
         model.summary()
 
