@@ -14,9 +14,16 @@ import smlp
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Train the dataset file.")
-    
-        parser.add_argument('--dataset', type=str, required=False, help="Path to the dataset file.")
-        parser.add_argument('--validset', type=str, required=False, help="Path to the valid dataset file.")
+
+        parser.add_argument(
+            "--dataset", type=str, required=False, help="Path to the dataset file."
+        )
+        parser.add_argument(
+            "--validset",
+            type=str,
+            required=False,
+            help="Path to the valid dataset file.",
+        )
 
         arg = parser.parse_args()
 
@@ -24,7 +31,7 @@ if __name__ == "__main__":
             train_data: pd.DataFrame = load("train.csv", header=None)
         else:
             train_data: pd.DataFrame = load(arg.dataset, header=None)
-        
+
         if arg.validset is None:
             valid_data: pd.DataFrame = load("valid.csv", header=None)
         else:
@@ -53,42 +60,45 @@ if __name__ == "__main__":
 
         model_list = []
         for _ in range(4):
-            model_list.append(smlp.Sequential(
-                [
-                    smlp.layers.Input(x_train.shape[1]),
-                    smlp.layers.Dense(
-                        24, activation="sigmoid", weights_initializer=initializer
-                    ),
-                    smlp.layers.Dense(
-                        24, activation="sigmoid", weights_initializer=initializer
-                    ),
-                    # smlp.layers.Dense(
-                    #     24, activation="sigmoid", weights_initializer=initializer
-                    # ),
-                    # smlp.layers.Dense(
-                    #     24, activation="sigmoid", weights_initializer=initializer
-                    # ),
-                    smlp.layers.Dense(
-                        24, activation="sigmoid", weights_initializer=initializer
-                    ),
-                    smlp.layers.Dense(
-                        y_train.shape[1],
-                        activation="softmax",
-                        weights_initializer=initializer,
-                    ),
-                ]
-            ))
+            model_list.append(
+                smlp.Sequential(
+                    [
+                        smlp.layers.Input(x_train.shape[1]),
+                        smlp.layers.Dense(
+                            24, activation="sigmoid", weights_initializer=initializer
+                        ),
+                        smlp.layers.Dense(
+                            24, activation="sigmoid", weights_initializer=initializer
+                        ),
+                        # smlp.layers.Dense(
+                        #     24, activation="sigmoid", weights_initializer=initializer
+                        # ),
+                        smlp.layers.Dense(
+                            24, activation="sigmoid", weights_initializer=initializer
+                        ),
+                        smlp.layers.Dense(
+                            y_train.shape[1],
+                            activation="softmax",
+                            weights_initializer=initializer,
+                        ),
+                    ]
+                )
+            )
 
         optimizer_list = []
-        optimizer = smlp.optimizers.SGD(
-            learning_rate=0.01, momentum=0.0, nesterov=False
+
+        optimizer_list.append(
+            smlp.optimizers.SGD(learning_rate=0.02, momentum=0.0, nesterov=False)
         )
-        # optimizer = smlp.optimizers.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
-        # optimizer = smlp.optimizers.RMSprop(momentum=0.9)
-        # optimizer = smlp.optimizers.Adam()
+
+        optimizer_list.append(
+            smlp.optimizers.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+        )
+        optimizer_list.append(smlp.optimizers.RMSprop(momentum=0.9))
+        optimizer_list.append(smlp.optimizers.Adam())
 
         # model.compile(optimizer=optimizer, loss="binaryCrossentropy", metrics=['accuracy', 'mse'])
-        for model in model_list:
+        for model, optimizer in zip(model_list, optimizer_list):
             model.compile(
                 optimizer=optimizer,
                 loss="binaryCrossentropy",
@@ -96,24 +106,28 @@ if __name__ == "__main__":
                 # metrics=["accuracy", "mse"],
             )
 
-        model.summary()
+        # model.summary()
 
         # es = EarlyStopping(monitor="val_accuracy", patience=100, start_from_epoch=500)
         es = smlp.callbacks.EarlyStopping(
             monitor="val_loss", patience=100, start_from_epoch=500
         )
 
-        fit_history = model.fit(
-            x_train,
-            y_train,
-            validation_data=(x_valid, y_valid),
-            batch_size=200,
-            epochs=5000,
-            callbacks=[es],
-            standard_scaler=True,
-        )
+        fit_history_list = []
+        for model in model_list:
+            fit_history_list.append(
+                model.fit(
+                    x_train,
+                    y_train,
+                    validation_data=(x_valid, y_valid),
+                    batch_size=200,
+                    epochs=5000,
+                    callbacks=[es],
+                    standard_scaler=True,
+                )
+            )
 
-        keys = [key for key in fit_history.history.keys() if "val_" not in key]
+        keys = [key for key in fit_history_list[0].history.keys() if "val_" not in key]
         n_graph = len(keys)
 
         w = 2
@@ -121,8 +135,7 @@ if __name__ == "__main__":
         fig, axs = plt.subplots(h, w)
 
         # red for train, blue for valid if exist
-        color = ["red", "blue"]
-        x_len = fit_history.epoch
+        # color = ["red", "blue"]
 
         for i, key in enumerate(keys):
 
@@ -135,32 +148,33 @@ if __name__ == "__main__":
                 cur_ax = axs[cur_w]
 
             cur_ax.set(xlabel="epoch", ylabel=key)
-            cur_ax.plot(
-                x_len,
-                fit_history.history[key],
-                c=color[0],
-                label=f"Train-set {label_name}",
-            )
-            if "val_" + key in fit_history.history.keys():
+
+            for fit_history in fit_history_list:
+                x_len = fit_history.epoch
                 cur_ax.plot(
                     x_len,
-                    fit_history.history["val_" + key],
-                    c=color[1],
-                    label=f"Valid-set {label_name}",
+                    fit_history.history[key],
+                    label=f"Train-set {label_name}",
                 )
-            cur_ax.legend(loc="best", fontsize="x-small")
-            cur_ax.grid()
+                if "val_" + key in fit_history.history.keys():
+                    cur_ax.plot(
+                        x_len,
+                        fit_history.history["val_" + key],
+                        label=f"Valid-set {label_name}",
+                    )
+                cur_ax.legend(loc="best", fontsize="x-small")
+                cur_ax.grid()
 
         plt.tight_layout()
         plt.show()
 
-        with open("model.pkl", "wb") as f:
-            pickle.dump(model, f)
-        print("model saved as 'model.pkl' to current directory.")
+        # with open("model.pkl", "wb") as f:
+        #     pickle.dump(model, f)
+        # print("model saved as 'model.pkl' to current directory.")
 
-        with open("scale.pkl", "wb") as f:
-            pickle.dump(model.get_data_mean_std(), f)
-        print("model scale saved as 'scale.pkl' to current directory.")
+        # with open("scale.pkl", "wb") as f:
+        #     pickle.dump(model.get_data_mean_std(), f)
+        # print("model scale saved as 'scale.pkl' to current directory.")
 
         # test_data: pd.DataFrame = load("test.csv", header=None)
         # data_test = test_data
