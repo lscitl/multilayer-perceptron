@@ -14,9 +14,16 @@ import smlp
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Train the dataset file.")
-    
-        parser.add_argument('--dataset', type=str, required=False, help="Path to the dataset file.")
-        parser.add_argument('--validset', type=str, required=False, help="Path to the valid dataset file.")
+
+        parser.add_argument(
+            "--dataset", type=str, required=False, help="Path to the dataset file."
+        )
+        parser.add_argument(
+            "--validset",
+            type=str,
+            required=False,
+            help="Path to the valid dataset file.",
+        )
 
         arg = parser.parse_args()
 
@@ -24,7 +31,7 @@ if __name__ == "__main__":
             train_data: pd.DataFrame = load("train.csv", header=None)
         else:
             train_data: pd.DataFrame = load(arg.dataset, header=None)
-        
+
         if arg.validset is None:
             valid_data: pd.DataFrame = load("valid.csv", header=None)
         else:
